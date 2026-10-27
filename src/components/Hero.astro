@@ -1,98 +1,118 @@
 ---
 import { Image } from 'astro:assets';
 import { site } from '../data/site';
-import LinkButton from './LinkButton.astro';
 
-// Drop a photo at src/assets/hero.jpg (or .png/.webp) to switch to the photo-led hero.
+// Drop a photo at src/assets/hero.jpg (or .png/.webp) and it fills the right column above the facts.
 const heroImages = import.meta.glob<{ default: ImageMetadata }>('../assets/hero.{jpg,jpeg,png,webp}', {
   eager: true,
 });
 const hero = Object.values(heroImages)[0]?.default;
-const [first, ...rest] = site.name.split(' ');
 ---
 
-<section class:list={['hero', { 'hero--photo': !!hero }]}>
-  <div class="wrap hero__inner">
+<section class="hero">
+  <div class="wrap hero__grid">
     <div class="hero__text">
-      <p class="hero__eyebrow">{site.domain}</p>
-      <h1>
-        <span class="hero__first">{first}</span>
-        <span class="hero__rest">{rest.join(' ')}</span>
-      </h1>
-      <p class="hero__tagline">{site.tagline}</p>
-      <div class="hero__actions">
-        {site.socials.map((s, i) => (
-          <LinkButton href={s.url} variant={i === 0 ? 'solid' : 'outline'}>{s.label}</LinkButton>
-        ))}
-      </div>
+      <p class="label">{site.role}</p>
+      <h1>{site.headline}</h1>
+      <p class="hero__summary">{site.summary}</p>
+      <p class="hero__summary muted">{site.summary2}</p>
+      <p class="hero__links">
+        <a href="#story">Read the story ↓</a>
+        <a href="#talks">Talks</a>
+      </p>
     </div>
-    {hero && (
-      <div class="hero__media">
-        <Image src={hero} alt="" widths={[480, 800, 1200]} sizes="(min-width: 900px) 45vw, 100vw" loading="eager" />
-      </div>
-    )}
+    <div class="hero__side">
+      {hero && (
+        <Image class="hero__photo" src={hero} alt="" widths={[480, 800]} sizes="(min-width: 960px) 28vw, 100vw" loading="eager" />
+      )}
+      <dl class="facts">
+        {site.facts.map((f) => (
+          <div class="facts__row">
+            <dt class="label">{f.term}</dt>
+            <dd>{f.detail}</dd>
+          </div>
+        ))}
+        <div class="facts__row">
+          <dt class="label">Links</dt>
+          <dd class="facts__links">
+            {site.socials.map((s) => (
+              <a href={s.url} target={s.url.startsWith('mailto:') ? undefined : '_blank'} rel="me noopener">{s.label}</a>
+            ))}
+          </dd>
+        </div>
+      </dl>
+    </div>
   </div>
 </section>
 
 <style>
   .hero {
-    min-height: min(calc(100svh - 3.75rem), 52rem);
+    min-height: min(calc(100svh - var(--bar)), 52rem);
     display: flex;
     align-items: center;
-    padding: 4rem 0;
+    padding: 3rem 0;
   }
-  .hero__inner {
+  .hero__grid {
     display: grid;
-    gap: 2.5rem;
-    align-items: center;
+    gap: 3rem 2rem;
+    align-items: end;
   }
-  .hero--photo .hero__inner {
-    grid-template-columns: 1fr;
-  }
-  @media (min-width: 900px) {
-    .hero--photo .hero__inner {
-      grid-template-columns: 1.1fr 0.9fr;
+  @media (min-width: 960px) {
+    .hero__grid {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+    .hero__text {
+      grid-column: 3 / 9;
+    }
+    .hero__side {
+      grid-column: 10 / 13;
     }
   }
-  .hero__eyebrow {
-    font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 1.25rem;
-  }
   h1 {
-    font-size: clamp(3.25rem, 12vw, 9rem);
-    font-weight: 700;
-    line-height: 0.9;
-    letter-spacing: -0.045em;
-    display: flex;
-    flex-direction: column;
+    margin: 1rem 0 1.5rem;
+    max-width: 18ch;
   }
-  .hero__rest {
-    font-weight: 400;
-    font-style: italic;
-    font-variation-settings: 'SOFT' 100;
-  }
-  .hero__tagline {
-    font-size: clamp(1.1rem, 2vw, 1.4rem);
-    max-width: 38ch;
-    margin: 2rem 0 2.25rem;
-    color: var(--ink-muted);
+  .hero__summary {
+    max-width: 52ch;
     text-wrap: pretty;
   }
-  .hero__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+  .hero__summary.muted {
+    font-size: 1rem;
   }
-  .hero__media img {
+  .hero__links {
+    display: flex;
+    gap: 1.75rem;
+    margin: 1.5rem 0 0;
+  }
+  .hero__photo {
+    display: block;
     width: 100%;
     height: auto;
     aspect-ratio: 4 / 5;
     object-fit: cover;
-    border-radius: 6px;
-    box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.5);
+    margin-bottom: 2rem;
+  }
+  .facts {
+    margin: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .facts__row {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--line);
+  }
+  dt {
+    padding-top: 0.2rem;
+  }
+  dd {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+  .facts__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
   }
 </style>

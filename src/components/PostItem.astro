@@ -9,61 +9,57 @@ const { title, url, date, publication, series, summary } = post.data;
 const dateLabel = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 ---
 
-<li class="post">
-  <div class="post__meta">
+<li class="row post">
+  <p class="post__date label num">
     <time datetime={date.toISOString().slice(0, 10)}>{dateLabel}</time>
-    <span>{series ?? publication}</span>
+  </p>
+  <div class="post__main">
+    <h3><a href={url} target="_blank" rel="noopener">{title}</a></h3>
+    <p class="muted">{summary}</p>
   </div>
-  <div class="post__body">
-    <h3><a href={url} target="_blank" rel="noopener">{title} <span aria-hidden="true">↗</span></a></h3>
-    <p>{summary}</p>
-  </div>
+  <p class="post__where muted">
+    {publication}
+    {series && <span class="post__series">{series}</span>}
+  </p>
 </li>
 
 <style>
   .post {
     display: grid;
-    gap: 0.5rem 2rem;
-    padding: 1.75rem 0;
-    border-top: 1px solid var(--line);
+    gap: 0.4rem 1.5rem;
+    padding: 1.4rem 0;
   }
   @media (min-width: 720px) {
     .post {
-      grid-template-columns: 11rem 1fr;
+      grid-template-columns: 7rem minmax(0, 1fr) 12rem;
     }
   }
-  .post__meta {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    font-size: 0.85rem;
-    color: var(--ink-muted);
-  }
-  .post__meta span {
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-size: 0.72rem;
-    color: var(--accent);
-  }
-  h3 {
-    font-size: clamp(1.3rem, 2.4vw, 1.7rem);
-    margin-bottom: 0.6rem;
+  .post__date {
+    padding-top: 0.25rem;
+    white-space: nowrap;
   }
   h3 a {
     text-decoration: none;
   }
+  h3 a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
   h3 a:hover {
     text-decoration: underline;
   }
-  h3 span {
-    font-size: 0.7em;
-    color: var(--accent);
-  }
-  p {
-    margin: 0;
-    color: var(--ink-muted);
+  .post__main p {
+    margin: 0.4rem 0 0;
     max-width: var(--measure);
     text-wrap: pretty;
+  }
+  .post__where {
+    margin: 0;
+    font-size: 0.9rem;
+    padding-top: 0.3rem;
+  }
+  .post__series {
+    display: block;
   }
 </style>

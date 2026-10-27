@@ -10,9 +10,11 @@ interface Props {
   /** Path for canonical URL, e.g. "/talks/foo/" */
   path?: string;
   type?: 'website' | 'article';
+  /** Page contains the arcade gate: lock the bonus content before first paint unless already unlocked. */
+  gate?: boolean;
 }
 
-const { title, description = site.description, path = '/', type = 'website' } = Astro.props;
+const { title, description = site.description, path = '/', type = 'website', gate = false } = Astro.props;
 const pageTitle = title ? `${title} · ${site.shortName}` : `${site.name}`;
 const canonical = new URL(path, Astro.site ?? `https://${site.domain}`).href;
 ---
@@ -26,6 +28,7 @@ const canonical = new URL(path, Astro.site ?? `https://${site.domain}`).href;
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <meta name="generator" content={Astro.generator} />
     <meta property="og:type" content={type} />
@@ -38,8 +41,17 @@ const canonical = new URL(path, Astro.site ?? `https://${site.domain}`).href;
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400..700,0..100&family=Inter:wght@400;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,200..900;1,7..72,200..900&family=Silkscreen&display=swap"
     />
+    {gate && (
+      <script is:inline>
+        try {
+          if (!localStorage.getItem('aq-bonus')) document.documentElement.setAttribute('data-locked', '');
+        } catch (e) {
+          document.documentElement.setAttribute('data-locked', '');
+        }
+      </script>
+    )}
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>

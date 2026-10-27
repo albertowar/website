@@ -5,13 +5,12 @@ const year = new Date().getFullYear();
 
 <footer class="footer">
   <div class="wrap footer__inner">
-    <p>© {year} {site.name}</p>
+    <p class="num">© {year} {site.name}</p>
     <ul>
       {site.socials.map((s) => (
-        <li><a href={s.url} rel="me noopener" target="_blank">{s.label}</a></li>
-      ))}
-      {site.hobbies.map((h) => (
-        <li><a href={h.url} rel="noopener" target="_blank">{h.label}</a></li>
+        <li>
+          <a href={s.url} rel="me noopener" target={s.url.startsWith('mailto:') ? undefined : '_blank'}>{s.label}</a>
+        </li>
       ))}
     </ul>
   </div>
@@ -19,11 +18,11 @@ const year = new Date().getFullYear();
 
 <style>
   .footer {
-    border-top: 2px solid var(--ink);
+    border-top: 1px solid var(--line);
     margin-top: 6rem;
-    padding: 2rem 0 3rem;
+    padding: 1.5rem 0 3rem;
     font-size: 0.9rem;
-    color: var(--ink-muted);
+    color: var(--ink-2);
   }
   .footer__inner {
     display: flex;
@@ -37,7 +36,7 @@ const year = new Date().getFullYear();
   ul {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 1.25rem;
     list-style: none;
     margin: 0;
     padding: 0;

@@ -1,0 +1,52 @@
+---
+import type { Stage } from '../data/story';
+
+interface Props {
+  stages: readonly Stage[];
+}
+const { stages } = Astro.props;
+---
+
+<ol class="rows">
+  {stages.map((s, i) => (
+    <li class="row stage">
+      <p class="stage__meta label num">
+        Level {String(i + 1).padStart(2, '0')}
+        {s.when && <span class="stage__when">{s.when}</span>}
+      </p>
+      <div class="stage__main">
+        <h3>{s.title}</h3>
+        <p class="stage__role">{s.role}</p>
+        {s.text && <p class="stage__text muted">{s.text}</p>}
+      </div>
+    </li>
+  ))}
+</ol>
+
+<style>
+  .stage {
+    display: grid;
+    gap: 0.4rem 1.5rem;
+    padding: 1.4rem 0;
+  }
+  @media (min-width: 720px) {
+    .stage {
+      grid-template-columns: 7rem minmax(0, 1fr);
+    }
+  }
+  .stage__meta {
+    padding-top: 0.25rem;
+  }
+  .stage__when {
+    display: block;
+    color: var(--ink-2);
+  }
+  .stage__role {
+    margin: 0.3rem 0 0;
+  }
+  .stage__text {
+    margin: 0.4rem 0 0;
+    max-width: var(--measure);
+    text-wrap: pretty;
+  }
+</style>

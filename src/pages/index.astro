@@ -3,10 +3,13 @@ import { getCollection, getEntry, render } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import Hero from '../components/Hero.astro';
 import Section from '../components/Section.astro';
-import TalkCard from '../components/TalkCard.astro';
+import Story from '../components/Story.astro';
+import TalkRow from '../components/TalkRow.astro';
 import PostItem from '../components/PostItem.astro';
-import LinkButton from '../components/LinkButton.astro';
+import ArcadeGate from '../components/ArcadeGate.astro';
+import BonusStage from '../components/BonusStage.astro';
 import { site } from '../data/site';
+import { stages } from '../data/story';
 
 const talks = (await getCollection('talks')).sort(
   (a, b) => b.data.year - a.data.year || (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0),
@@ -14,133 +17,75 @@ const talks = (await getCollection('talks')).sort(
 const posts = (await getCollection('posts')).sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
 
 const writing = await getEntry('pages', 'writing');
-const about = await getEntry('pages', 'about');
-if (!writing || !about) throw new Error('Missing src/content/pages/writing.md or about.md');
+if (!writing) throw new Error('Missing src/content/pages/writing.md');
 const { Content: WritingContent } = await render(writing);
-const { Content: AboutContent } = await render(about);
+
+const count = (n: number) => String(n).padStart(2, '0');
 ---
 
-<Base path="/">
+<Base path="/" gate>
   <Hero />
 
-  <Section id="talks" number="01" title="Talks" kicker="Conference and university talks. Each one has its own page with the abstract and curated follow-up links.">
-    <div class="talks-grid">
-      {talks.map((talk) => <TalkCard talk={talk} />)}
-    </div>
-    <p class="aside">
-      Abstracts and follow-up links also live on <a href={site.talksRepo} target="_blank" rel="noopener">GitHub</a>.
-    </p>
-  </Section>
+  <ArcadeGate>
+    <Section id="story" label="Story" count={count(stages.length)}>
+      <Story stages={stages} />
+    </Section>
 
-  <Section id="posts" number="02" title="Posts" kicker="Recent articles on AI, software engineering and security, published on LinkedIn.">
-    <ul class="posts">
-      {posts.map((post) => <PostItem post={post} />)}
-    </ul>
-  </Section>
+    <Section
+      id="talks"
+      label="Talks"
+      count={count(talks.length)}
+      kicker="Conference and university talks. Each one has its own page with the abstract and follow-up links."
+    >
+      <ol class="rows">
+        {talks.map((talk) => <TalkRow talk={talk} />)}
+      </ol>
+      <p class="aside muted">
+        Abstracts and links also live on <a href={site.talksRepo} target="_blank" rel="noopener">GitHub</a>.
+      </p>
+    </Section>
 
-  <Section id="writing" number="03" title={writing.data.title}>
-    <div class="writing">
-      <div class="prose">
+    <Section
+      id="posts"
+      label="Posts"
+      count={count(posts.length)}
+      kicker="Articles on AI, software engineering and security, published on LinkedIn."
+    >
+      <ol class="rows">
+        {posts.map((post) => <PostItem post={post} />)}
+      </ol>
+    </Section>
+
+    <Section id="writing" label="Writing">
+      <div class="prose writing">
         <WritingContent />
       </div>
-      {writing.data.status && <span class="badge">{writing.data.status}</span>}
-    </div>
-  </Section>
+      {writing.data.status && (
+        <p class="status label"><span aria-hidden="true">▪</span> {writing.data.status}</p>
+      )}
+    </Section>
 
-  <Section id="photography" number="04" title="Photography" kicker="When I am not at a keyboard I am usually behind a wide-angle lens.">
-    <ul class="hobbies">
-      {site.hobbies.map((h) => (
-        <li class="hobby">
-          <h3><a href={h.url} target="_blank" rel="noopener">{h.label}</a></h3>
-          <p class="hobby__handle">{h.handle}</p>
-          <p class="hobby__blurb">{h.blurb}</p>
-          <LinkButton href={h.url} variant="outline">Open {h.label}</LinkButton>
-        </li>
-      ))}
-    </ul>
-  </Section>
-
-  <Section id="about" number="05" title={about.data.title}>
-    <div class="prose">
-      <AboutContent />
-    </div>
-  </Section>
+    <Section id="photography" label="Photography">
+      <BonusStage />
+    </Section>
+  </ArcadeGate>
 </Base>
 
 <style>
-  .talks-grid {
-    display: grid;
-    gap: 1.25rem;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
-  }
   .aside {
-    margin: 1.5rem 0 0;
+    margin: 1.25rem 0 0;
     font-size: 0.9rem;
-    color: var(--ink-muted);
-  }
-  .posts {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    border-bottom: 1px solid var(--line);
   }
   .writing {
-    display: grid;
-    gap: 1.5rem;
-    align-items: start;
-    padding: 2rem;
-    border: 2px dashed var(--line);
-    border-radius: 8px;
-    font-size: 1.15rem;
+    font-size: 1.1rem;
   }
-  @media (min-width: 720px) {
-    .writing {
-      grid-template-columns: 1fr auto;
-    }
+  .status {
+    margin-top: 1.25rem;
   }
-  .badge {
-    display: inline-block;
-    padding: 0.4rem 0.9rem;
-    border-radius: 999px;
-    background: var(--accent);
-    color: var(--accent-ink);
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-  .hobbies {
-    display: grid;
-    gap: 1.25rem;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .hobby {
-    display: grid;
-    gap: 0.5rem;
-    justify-items: start;
-    padding: 1.75rem;
-    background: var(--bg-elevated);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-  }
-  .hobby h3 {
-    font-size: 1.75rem;
-  }
-  .hobby h3 a {
-    text-decoration: none;
-  }
-  .hobby__handle {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--accent);
-    font-weight: 600;
-  }
-  .hobby__blurb {
-    margin: 0 0 0.75rem;
-    color: var(--ink-muted);
+  .status span {
+    color: var(--signal);
+    font-size: 0.6em;
+    vertical-align: 0.15em;
+    margin-right: 0.35rem;
   }
 </style>

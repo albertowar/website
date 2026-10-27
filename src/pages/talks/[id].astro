@@ -16,74 +16,100 @@ const { talk } = Astro.props;
 const { title, event, venue, year, date, summary, slides, video, sourceUrl } = talk.data;
 const { Content } = await render(talk);
 const dateLabel = date?.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+const hasLinks = slides || video || sourceUrl;
 ---
 
 <Base title={title} description={summary} path={`/talks/${talk.id}/`} type="article">
   <article class="wrap talk">
-    <header class="talk__head">
-      <a class="talk__back" href="/#talks"><span aria-hidden="true">←</span> All talks</a>
-      <p class="talk__meta">
-        <span class="talk__year">{dateLabel ?? year}</span>
-        <span>{event}{venue ? ` · ${venue}` : ''}</span>
-      </p>
-      <h1>{title}</h1>
-      {(slides || video || sourceUrl) && (
-        <div class="talk__links">
-          {slides && <LinkButton href={slides}>Slides</LinkButton>}
-          {video && <LinkButton href={video} variant="outline">Video</LinkButton>}
-          {sourceUrl && <LinkButton href={sourceUrl} variant="outline">Source on GitHub</LinkButton>}
+    <aside class="talk__side">
+      <p class="talk__back"><a href="/#talks">← All talks</a></p>
+      <dl class="meta">
+        <div class="meta__row">
+          <dt class="label">Event</dt>
+          <dd>{event}</dd>
         </div>
-      )}
-    </header>
-    <div class="prose talk__body">
-      <Content />
+        {venue && (
+          <div class="meta__row">
+            <dt class="label">Venue</dt>
+            <dd>{venue}</dd>
+          </div>
+        )}
+        <div class="meta__row">
+          <dt class="label">When</dt>
+          <dd class="num">{dateLabel ?? year}</dd>
+        </div>
+        {hasLinks && (
+          <div class="meta__row">
+            <dt class="label">Links</dt>
+            <dd class="meta__links">
+              {slides && <LinkButton href={slides}>Slides</LinkButton>}
+              {video && <LinkButton href={video}>Video</LinkButton>}
+              {sourceUrl && <LinkButton href={sourceUrl}>Source on GitHub</LinkButton>}
+            </dd>
+          </div>
+        )}
+      </dl>
+    </aside>
+    <div class="talk__main">
+      <h1>{title}</h1>
+      <div class="prose talk__body">
+        <Content />
+      </div>
     </div>
   </article>
 </Base>
 
 <style>
   .talk {
+    display: grid;
+    gap: 2rem;
+    align-items: start;
     padding-top: 3rem;
   }
-  .talk__head {
-    border-bottom: 2px solid var(--ink);
-    padding-bottom: 2rem;
-    margin-bottom: 2.5rem;
+  @media (min-width: 960px) {
+    .talk {
+      grid-template-columns: 3fr 8fr 1fr;
+      padding-top: 5rem;
+    }
+    .talk__side {
+      position: sticky;
+      top: calc(var(--bar) + 2rem);
+    }
   }
   .talk__back {
-    display: inline-block;
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    text-decoration: none;
-    margin-bottom: 2rem;
+    margin: 0 0 1.5rem;
+    font-size: 0.9rem;
   }
-  .talk__meta {
+  .talk__back a {
+    text-decoration: none;
+  }
+  .meta {
+    margin: 0;
+    border-bottom: 1px solid var(--line);
+    max-width: 22rem;
+  }
+  .meta__row {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--line);
+  }
+  dt {
+    padding-top: 0.2rem;
+  }
+  dd {
+    margin: 0;
+    font-size: 0.95rem;
+  }
+  .meta__links {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
-    align-items: baseline;
-    font-size: 0.95rem;
-    color: var(--ink-muted);
-    margin-bottom: 1rem;
-  }
-  .talk__year {
-    font-family: var(--font-display);
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--accent);
+    gap: 0.5rem;
   }
   h1 {
-    font-size: clamp(2.5rem, 7vw, 5.5rem);
-    font-weight: 700;
-    max-width: 18ch;
-  }
-  .talk__links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 2rem;
+    max-width: 20ch;
+    margin-bottom: 2.5rem;
   }
   .talk__body {
     font-size: 1.1rem;

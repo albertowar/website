@@ -1,55 +1,26 @@
 ---
 interface Props {
   href: string;
-  variant?: 'solid' | 'outline';
   external?: boolean;
 }
-const { href, variant = 'solid', external = true } = Astro.props;
+const { href, external = true } = Astro.props;
 ---
 
-<a
-  class:list={['btn', `btn--${variant}`]}
-  href={href}
-  target={external ? '_blank' : undefined}
-  rel={external ? 'noopener' : undefined}
->
+<a class="btn" href={href} target={external ? '_blank' : undefined} rel={external ? 'noopener' : undefined}>
   <slot />
-  {external && <span class="btn__arrow" aria-hidden="true">↗</span>}
 </a>
 
 <style>
   .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.8rem 1.25rem;
-    border: 2px solid var(--ink);
-    border-radius: 999px;
-    font-weight: 600;
+    display: inline-block;
+    padding: 0.45rem 0.9rem;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 0.9rem;
     text-decoration: none;
-    transition: transform 120ms ease, background 120ms ease, color 120ms ease;
+    transition: background 150ms ease;
   }
   .btn:hover {
-    transform: translateY(-2px);
-  }
-  .btn--solid {
-    background: var(--ink);
-    color: var(--bg);
-  }
-  .btn--solid:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--accent-ink);
-  }
-  .btn--outline {
-    background: transparent;
-    color: var(--ink);
-  }
-  .btn--outline:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .btn__arrow {
-    font-size: 0.9em;
+    background: var(--accent-fill);
   }
 </style>

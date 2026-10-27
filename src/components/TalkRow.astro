@@ -1,0 +1,63 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  talk: CollectionEntry<'talks'>;
+}
+const { talk } = Astro.props;
+const { title, event, venue, year, summary } = talk.data;
+const href = `/talks/${talk.id}/`;
+---
+
+<li class="row talk">
+  <p class="talk__year label num">{year}</p>
+  <div class="talk__main">
+    <h3><a href={href}>{title}</a></h3>
+    <p class="muted">{summary}</p>
+  </div>
+  <p class="talk__where muted">
+    {event}
+    {venue && <span class="talk__venue">{venue}</span>}
+  </p>
+</li>
+
+<style>
+  .talk {
+    display: grid;
+    gap: 0.4rem 1.5rem;
+    padding: 1.4rem 0;
+  }
+  @media (min-width: 720px) {
+    .talk {
+      grid-template-columns: 4rem minmax(0, 1fr) 12rem;
+    }
+  }
+  .talk__year {
+    padding-top: 0.25rem;
+  }
+  h3 a {
+    text-decoration: none;
+  }
+  /* The whole row is the link target. */
+  h3 a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+  h3 a:hover {
+    text-decoration: underline;
+  }
+  .talk__main p {
+    margin: 0.4rem 0 0;
+    max-width: var(--measure);
+    text-wrap: pretty;
+  }
+  .talk__where {
+    margin: 0;
+    font-size: 0.9rem;
+    padding-top: 0.3rem;
+  }
+  .talk__venue {
+    display: block;
+  }
+</style>

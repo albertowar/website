@@ -1,42 +1,23 @@
 :root {
-  --bg: #f6f3ee;
-  --bg-elevated: #fffdf9;
-  --ink: #15130f;
-  --ink-muted: #5d574e;
-  --line: #d9d3c9;
-  --accent: #d8381c;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(216, 56, 28, 0.08);
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Deep indigo base, cool off-white ink. Never pure black, never green-on-black. */
+  --paper: #0e1020;
+  --paper-2: #161936;
+  --ink: #ece9ff;
+  --ink-2: #9d9bc0;
+  --line: #262a4d;
+  /* Cyan: labels, cursor, hairline hover, buttons. */
+  --accent: #5ee6ff;
+  --accent-fill: #141a33;
+  --accent-dim: #2a5f6b;
+  /* Magenta: the signal colour. Bots in the game, the status mark. */
+  --signal: #ff5fa2;
+  --font: 'Literata', Georgia, 'Times New Roman', serif;
+  --font-pixel: 'Silkscreen', ui-monospace, monospace;
   --gutter: 16px;
-  --measure: 72ch;
-  --wrap: 1180px;
-  color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --bg: #121110;
-    --bg-elevated: #1b1917;
-    --ink: #f1ece4;
-    --ink-muted: #a59d91;
-    --line: #2e2b27;
-    --accent: #ff5a3c;
-    --accent-ink: #15130f;
-    --accent-soft: rgba(255, 90, 60, 0.12);
-  }
-}
-
-:root[data-theme='dark'] {
-  --bg: #121110;
-  --bg-elevated: #1b1917;
-  --ink: #f1ece4;
-  --ink-muted: #a59d91;
-  --line: #2e2b27;
-  --accent: #ff5a3c;
-  --accent-ink: #15130f;
-  --accent-soft: rgba(255, 90, 60, 0.12);
+  --wrap: 1120px;
+  --measure: 62ch;
+  --bar: 3.5rem;
+  color-scheme: dark;
 }
 
 *,
@@ -47,18 +28,8 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 4.5rem;
+  scroll-padding-top: calc(var(--bar) + 1rem);
   -webkit-text-size-adjust: 100%;
-}
-
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 1.0625rem;
-  line-height: 1.6;
-  overflow-x: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -67,16 +38,39 @@ body {
   }
 }
 
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-optical-sizing: auto;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+
 h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   margin: 0;
   text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2rem, 4.5vw, 3.25rem);
+  line-height: 1.1;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.2rem;
 }
 
 p {
@@ -85,19 +79,28 @@ p {
 
 a {
   color: inherit;
-  text-decoration-color: var(--accent);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.18em;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-dim);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  transition: color 150ms ease, text-decoration-color 150ms ease;
 }
 
 a:hover {
   color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 a:focus-visible,
-button:focus-visible {
-  outline: 3px solid var(--accent);
+button:focus-visible,
+canvas:focus-visible {
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
 }
 
 .wrap {
@@ -113,12 +116,17 @@ button:focus-visible {
   }
 }
 
+::selection {
+  background: var(--signal);
+  color: var(--paper);
+}
+
 .skip-link {
   position: absolute;
   left: var(--gutter);
   top: -4rem;
   background: var(--accent);
-  color: var(--accent-ink);
+  color: var(--paper);
   padding: 0.5rem 1rem;
   z-index: 100;
   text-decoration: none;
@@ -128,7 +136,44 @@ button:focus-visible {
   top: 0.5rem;
 }
 
-/* Long-form markdown (talk pages, about) */
+/* Small olive label: section names, roles, metadata. Sentence case, never uppercase. */
+.label {
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  margin: 0;
+}
+
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+/* Hairlined list rows: talks, posts, stages, links. */
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.row {
+  position: relative;
+  border-top: 1px solid var(--line);
+  transition: border-color 150ms ease;
+}
+
+.row:hover,
+.row:focus-within,
+.row:hover + .row,
+.row:focus-within + .row {
+  border-top-color: var(--accent);
+}
+
+/* Long-form markdown (talk pages, writing) */
 .prose {
   max-width: var(--measure);
 }
@@ -138,25 +183,23 @@ button:focus-visible {
 }
 
 .prose h2 {
-  font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+  font-size: 1.5rem;
   margin-top: 2.5em;
   padding-top: 1rem;
-  border-top: 2px solid var(--ink);
+  border-top: 1px solid var(--line);
 }
 
 .prose h3 {
-  font-size: clamp(1.35rem, 2.6vw, 1.75rem);
+  font-size: 1.2rem;
   margin-top: 2em;
   color: var(--accent);
 }
 
 .prose h4 {
-  font-family: var(--font-body);
   font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--accent);
   margin-top: 2em;
 }
 
@@ -166,31 +209,44 @@ button:focus-visible {
 }
 
 .prose li {
-  padding: 0.6rem 0 0.6rem 1.25rem;
-  border-left: 2px solid var(--line);
-  position: relative;
+  padding: 0.5rem 0 0.5rem 1rem;
+  border-left: 1px solid var(--line);
 }
 
 .prose li + li {
   margin-top: 0.25rem;
 }
 
-.prose li a {
-  font-weight: 600;
-}
-
 .prose blockquote {
   margin: 0;
   padding-left: 1.25rem;
-  border-left: 4px solid var(--accent);
-  color: var(--ink-muted);
+  border-left: 1px solid var(--accent);
+  color: var(--ink-2);
   font-style: italic;
 }
 
 .prose code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.92em;
-  background: var(--accent-soft);
+  background: var(--accent-fill);
   padding: 0.1em 0.35em;
-  border-radius: 4px;
+}
+
+/* Arcade gate. Without JS the bonus content is simply visible and the game hidden.
+   Base.astro sets data-locked on <html> before paint when there is no stored unlock. */
+.gate {
+  display: none;
+}
+
+html[data-locked] .gate {
+  display: block;
+}
+
+html[data-locked] .bonus-content {
+  display: none;
+}
+
+/* The first gated heading receives focus when the gate opens; it needs no ring. */
+h2[tabindex='-1']:focus {
+  outline: none;
 }

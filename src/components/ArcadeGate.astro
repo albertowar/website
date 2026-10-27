@@ -1,0 +1,189 @@
+---
+/**
+ * Everything below the landing screen is unlocked by winning (or skipping) Login Queue.
+ * Without JS the slot content is simply visible; see global.css for the locked state.
+ */
+import Section from './Section.astro';
+---
+
+<div class="gate" data-gate>
+  <Section id="play" label="Insert coin">
+    <div class="gate__inner">
+      <div class="gate__frame">
+        <canvas
+          class="gate__canvas"
+          width="240"
+          height="160"
+          tabindex="0"
+          role="img"
+          aria-label="Login Queue, a small arcade shooter. Bots and players descend toward the login line. Fire captchas at the bots and do not hit the players. Move with the arrow keys or A and D, fire with Space, or use the buttons below."
+        ></canvas>
+        <div class="gate__controls">
+          <button type="button" class="gate__btn gate__start" data-start>Start</button>
+          <div class="gate__pad">
+            <button type="button" class="gate__btn" data-move="-1" aria-label="Move left">◀</button>
+            <button type="button" class="gate__btn" data-fire aria-label="Fire a captcha">Fire</button>
+            <button type="button" class="gate__btn" data-move="1" aria-label="Move right">▶</button>
+          </div>
+        </div>
+      </div>
+      <p class="gate__skip">
+        <button type="button" class="linkish" data-skip>Skip the game</button>
+      </p>
+    </div>
+  </Section>
+</div>
+
+<div class="bonus-content" data-bonus>
+  <slot />
+</div>
+
+<script>
+  import { mountLoginQueue } from '../scripts/login-queue';
+
+  const KEY = 'aq-bonus';
+  const root = document.querySelector<HTMLElement>('[data-gate]');
+  const bonus = document.querySelector<HTMLElement>('[data-bonus]');
+
+  if (root && bonus) {
+    const locked = () => document.documentElement.hasAttribute('data-locked');
+    const unlock = () => {
+      try {
+        localStorage.setItem(KEY, '1');
+      } catch {
+        /* private mode: unlock for this page view only */
+      }
+      document.documentElement.removeAttribute('data-locked');
+      const first = bonus.querySelector<HTMLElement>('h2');
+      if (first) {
+        first.tabIndex = -1;
+        first.focus();
+      }
+    };
+    const toGate = () => {
+      root.scrollIntoView({ block: 'start' });
+      game.focus();
+    };
+    const lock = () => {
+      try {
+        localStorage.removeItem(KEY);
+      } catch {
+        /* ignore */
+      }
+      document.documentElement.setAttribute('data-locked', '');
+      game.reset();
+      toGate();
+    };
+    const game = mountLoginQueue(root, unlock);
+    root.querySelector('[data-skip]')?.addEventListener('click', unlock);
+    bonus.querySelector('[data-replay]')?.addEventListener('click', lock);
+
+    // While locked, any in-page link to gated content leads to the game instead.
+    document.addEventListener('click', (e) => {
+      if (!locked()) return;
+      const a = (e.target as Element | null)?.closest<HTMLAnchorElement>('a[href*="#"]');
+      if (!a) return;
+      const id = a.hash.slice(1);
+      if (!id) return;
+      const target = document.getElementById(id);
+      if (target && bonus.contains(target)) {
+        e.preventDefault();
+        toGate();
+      }
+    });
+  }
+</script>
+
+<style>
+  .gate__inner {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .gate__skip {
+      order: -1;
+    }
+  }
+  /* The page's one filled block. */
+  .gate__frame {
+    background: var(--accent-fill);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 0.75rem;
+    max-width: 32rem;
+  }
+  .gate__canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .gate__canvas:focus-visible {
+    outline-offset: 0;
+  }
+  /* Before a run only Start shows, centred. While playing, the move/fire pad replaces it. */
+  .gate__controls {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.75rem;
+  }
+  .gate__start {
+    min-width: 8rem;
+  }
+  .gate__pad {
+    display: none;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    width: 100%;
+  }
+  [data-state='playing'] .gate__start {
+    display: none;
+  }
+  [data-state='playing'] .gate__pad {
+    display: grid;
+  }
+  .gate__btn {
+    font-family: var(--font-pixel);
+    font-size: 0.7rem;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 0.55rem 0.5rem;
+    border-radius: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .gate__btn:hover,
+  .gate__start {
+    background: var(--accent);
+    color: var(--paper);
+  }
+  .gate__start:hover {
+    background: transparent;
+    color: var(--accent);
+  }
+  .gate__skip {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+  .linkish {
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    color: var(--ink-2);
+    text-decoration: underline;
+    text-decoration-color: var(--accent-dim);
+    text-underline-offset: 0.2em;
+  }
+  .linkish:hover {
+    color: var(--accent);
+    text-decoration-color: var(--accent);
+  }
+</style>
