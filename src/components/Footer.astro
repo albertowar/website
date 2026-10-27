@@ -1,0 +1,45 @@
+---
+import { site } from '../data/site';
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="wrap footer__inner">
+    <p>© {year} {site.name}</p>
+    <ul>
+      {site.socials.map((s) => (
+        <li><a href={s.url} rel="me noopener" target="_blank">{s.label}</a></li>
+      ))}
+      {site.hobbies.map((h) => (
+        <li><a href={h.url} rel="noopener" target="_blank">{h.label}</a></li>
+      ))}
+    </ul>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    border-top: 2px solid var(--ink);
+    margin-top: 6rem;
+    padding: 2rem 0 3rem;
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+  }
+  .footer__inner {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  p {
+    margin: 0;
+  }
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+</style>

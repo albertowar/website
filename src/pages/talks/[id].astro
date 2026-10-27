@@ -1,0 +1,91 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import LinkButton from '../../components/LinkButton.astro';
+
+export async function getStaticPaths() {
+  const talks = await getCollection('talks');
+  return talks.map((talk) => ({ params: { id: talk.id }, props: { talk } }));
+}
+
+interface Props {
+  talk: CollectionEntry<'talks'>;
+}
+const { talk } = Astro.props;
+const { title, event, venue, year, date, summary, slides, video, sourceUrl } = talk.data;
+const { Content } = await render(talk);
+const dateLabel = date?.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+---
+
+<Base title={title} description={summary} path={`/talks/${talk.id}/`} type="article">
+  <article class="wrap talk">
+    <header class="talk__head">
+      <a class="talk__back" href="/#talks"><span aria-hidden="true">←</span> All talks</a>
+      <p class="talk__meta">
+        <span class="talk__year">{dateLabel ?? year}</span>
+        <span>{event}{venue ? ` · ${venue}` : ''}</span>
+      </p>
+      <h1>{title}</h1>
+      {(slides || video || sourceUrl) && (
+        <div class="talk__links">
+          {slides && <LinkButton href={slides}>Slides</LinkButton>}
+          {video && <LinkButton href={video} variant="outline">Video</LinkButton>}
+          {sourceUrl && <LinkButton href={sourceUrl} variant="outline">Source on GitHub</LinkButton>}
+        </div>
+      )}
+    </header>
+    <div class="prose talk__body">
+      <Content />
+    </div>
+  </article>
+</Base>
+
+<style>
+  .talk {
+    padding-top: 3rem;
+  }
+  .talk__head {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 2rem;
+    margin-bottom: 2.5rem;
+  }
+  .talk__back {
+    display: inline-block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    margin-bottom: 2rem;
+  }
+  .talk__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: baseline;
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+    margin-bottom: 1rem;
+  }
+  .talk__year {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  h1 {
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 700;
+    max-width: 18ch;
+  }
+  .talk__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+  .talk__body {
+    font-size: 1.1rem;
+  }
+</style>

@@ -1,0 +1,55 @@
+---
+interface Props {
+  id: string;
+  number: string;
+  title: string;
+  kicker?: string;
+}
+const { id, number, title, kicker } = Astro.props;
+---
+
+<section id={id} class="section">
+  <div class="wrap">
+    <header class="section__head">
+      <span class="section__num" aria-hidden="true">{number}</span>
+      <div>
+        <h2>{title}</h2>
+        {kicker && <p class="section__kicker">{kicker}</p>}
+      </div>
+    </header>
+    <div class="section__body">
+      <slot />
+    </div>
+  </div>
+</section>
+
+<style>
+  .section {
+    padding: 5rem 0 2rem;
+  }
+  .section__head {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1rem 1.5rem;
+    align-items: start;
+    border-top: 2px solid var(--ink);
+    padding-top: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+  .section__num {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 700;
+    line-height: 0.85;
+    color: var(--accent);
+    letter-spacing: -0.04em;
+  }
+  h2 {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+  }
+  .section__kicker {
+    margin: 0.5rem 0 0;
+    color: var(--ink-muted);
+    max-width: 60ch;
+  }
+</style>

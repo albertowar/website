@@ -1,0 +1,98 @@
+---
+import { Image } from 'astro:assets';
+import { site } from '../data/site';
+import LinkButton from './LinkButton.astro';
+
+// Drop a photo at src/assets/hero.jpg (or .png/.webp) to switch to the photo-led hero.
+const heroImages = import.meta.glob<{ default: ImageMetadata }>('../assets/hero.{jpg,jpeg,png,webp}', {
+  eager: true,
+});
+const hero = Object.values(heroImages)[0]?.default;
+const [first, ...rest] = site.name.split(' ');
+---
+
+<section class:list={['hero', { 'hero--photo': !!hero }]}>
+  <div class="wrap hero__inner">
+    <div class="hero__text">
+      <p class="hero__eyebrow">{site.domain}</p>
+      <h1>
+        <span class="hero__first">{first}</span>
+        <span class="hero__rest">{rest.join(' ')}</span>
+      </h1>
+      <p class="hero__tagline">{site.tagline}</p>
+      <div class="hero__actions">
+        {site.socials.map((s, i) => (
+          <LinkButton href={s.url} variant={i === 0 ? 'solid' : 'outline'}>{s.label}</LinkButton>
+        ))}
+      </div>
+    </div>
+    {hero && (
+      <div class="hero__media">
+        <Image src={hero} alt="" widths={[480, 800, 1200]} sizes="(min-width: 900px) 45vw, 100vw" loading="eager" />
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .hero {
+    min-height: min(calc(100svh - 3.75rem), 52rem);
+    display: flex;
+    align-items: center;
+    padding: 4rem 0;
+  }
+  .hero__inner {
+    display: grid;
+    gap: 2.5rem;
+    align-items: center;
+  }
+  .hero--photo .hero__inner {
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 900px) {
+    .hero--photo .hero__inner {
+      grid-template-columns: 1.1fr 0.9fr;
+    }
+  }
+  .hero__eyebrow {
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.25rem;
+  }
+  h1 {
+    font-size: clamp(3.25rem, 12vw, 9rem);
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+    display: flex;
+    flex-direction: column;
+  }
+  .hero__rest {
+    font-weight: 400;
+    font-style: italic;
+    font-variation-settings: 'SOFT' 100;
+  }
+  .hero__tagline {
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    max-width: 38ch;
+    margin: 2rem 0 2.25rem;
+    color: var(--ink-muted);
+    text-wrap: pretty;
+  }
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .hero__media img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: 6px;
+    box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.5);
+  }
+</style>
