@@ -1,12 +1,16 @@
 ---
 import { site } from '../data/site';
+import PixelIcon from './PixelIcon.astro';
+import type { IconName } from '../data/icons';
 
-const links = [
-  { href: '/#story', label: 'Story' },
-  { href: '/#talks', label: 'Talks' },
-  { href: '/#posts', label: 'Posts' },
-  { href: '/#writing', label: 'Writing' },
-  { href: '/#photography', label: 'Photography' },
+const links: { href: string; label: string; icon: IconName }[] = [
+  { href: '/#work', label: 'Work', icon: 'work' },
+  { href: '/#consulting', label: 'Consulting', icon: 'consulting' },
+  { href: '/#talks', label: 'Talks', icon: 'talks' },
+  { href: '/#posts', label: 'Posts', icon: 'posts' },
+  { href: '/#writing', label: 'Writing', icon: 'writing' },
+  { href: '/#story', label: 'Story', icon: 'story' },
+  { href: '/#photography', label: 'Photography', icon: 'photography' },
 ];
 
 // The brand mark is the pixel-art avatar (head crop of the GitHub profile image).
@@ -23,7 +27,12 @@ const links = [
     <nav aria-label="Sections">
       <ul>
         {links.map((l) => (
-          <li><a href={l.href} data-section={l.href.slice(2)}>{l.label}</a></li>
+          <li>
+            <a href={l.href} data-section={l.href.slice(2)} title={l.label}>
+              <PixelIcon name={l.icon} size={11} />
+              <span class="nav__text">{l.label}</span>
+            </a>
+          </li>
         ))}
       </ul>
     </nav>
@@ -105,7 +114,9 @@ const links = [
   }
   li a {
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     padding-left: 0.9rem;
     font-size: 0.85rem;
     letter-spacing: 0.02em;
@@ -168,6 +179,24 @@ const links = [
     }
     ul {
       gap: 1rem;
+    }
+  }
+  /* On phones the nav is icons only; the names stay for screen readers and in the tooltip. */
+  @media (max-width: 760px) {
+    li a {
+      padding: 0.5rem 0 0.5rem 0.75rem;
+    }
+    li a :global(.pixel-icon) {
+      width: 14px;
+      height: 14px;
+    }
+    .nav__text {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
   }
 </style>

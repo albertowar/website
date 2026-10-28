@@ -2,7 +2,11 @@
  * Login Queue: a ~45 second captcha shooter that gates the site.
  * You are the login filter at the bottom. Bots descend toward the login line; fire captchas at
  * them. Players descend too, and hitting one is a false positive. From wave 2 some bots wear a
- * player disguise that drops as they get closer. Canvas 2D, 240x160 logical pixels, no deps.
+ * player disguise that drops as they get closer. In wave 3 a blocked bot splits in two: block one
+ * and it finds another way in. Canvas 2D, 240x160 logical pixels, no deps.
+ *
+ * Controls: keys or the mouse on desktop; on touch screens tap the screen (the ship slides there and
+ * fires, dragging steers) or use the joystick and fire button on the cabinet's control panel.
  */
 
 type Kind = 'human' | 'bot';
@@ -27,6 +31,8 @@ interface Ent {
   dead: number;
   deathKind: 'burst' | 'fp' | null;
   gone: boolean;
+  /** Whether blocking this bot in a split wave leaves two behind; the halves never split again. */
+  canSplit: boolean;
 }
 
 interface Wave {
@@ -38,6 +44,8 @@ interface Wave {
   revealY: number;
   maxOn: number;
   banner: string;
+  /** Blocked bots split into two. */
+  split: boolean;
 }
 
 interface Stats {
@@ -81,10 +89,14 @@ const SPR_H = 10 * SCALE;
 const BANNER_T = 1.4;
 
 const WAVES: Wave[] = [
-  { spawns: 12, gap: 1.2, speed: 45, botRate: 0.5, disguise: 0, revealY: Infinity, maxOn: 3, banner: 'WAVE 1' },
-  { spawns: 12, gap: 1.0, speed: 50, botRate: 0.55, disguise: 0.3, revealY: 64, maxOn: 4, banner: 'BOTS NOW SPOOF PLAYERS' },
-  { spawns: 14, gap: 1.0, speed: 50, botRate: 0.6, disguise: 0.5, revealY: 66, maxOn: 3, banner: 'WATCH FOR THE TELL' },
+  { spawns: 10, gap: 1.2, speed: 38, botRate: 0.5, disguise: 0, revealY: Infinity, maxOn: 3, banner: 'WAVE 1', split: false },
+  { spawns: 10, gap: 1.0, speed: 42, botRate: 0.55, disguise: 0.3, revealY: 64, maxOn: 4, banner: 'BOTS NOW SPOOF PLAYERS', split: false },
+  { spawns: 11, gap: 1.0, speed: 42, botRate: 0.6, disguise: 0.5, revealY: 66, maxOn: 3, banner: 'BLOCKED BOTS SPLIT', split: true },
 ];
+/** A bot blocked below this line just dies: two halves this close to the line could not be stopped. */
+const SPLIT_MAX_Y = LINE_Y - 50;
+const STICK_DEAD = 0.15;
+const TAP_SPEED = SHIP_SPEED * 2.5;
 
 // Sprite maps: '.' is transparent, every other character is a palette key (see sprites()).
 // Gamers: h hair, H headset, f face, e eyes, # shirt and legs. Robot: # body, e eyes, l chest light.
@@ -190,9 +202,14 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
   let loseReason = '';
   let inView = true;
   const heldKeys = new Set<number>();
-  const heldButtons = new Set<number>();
+  /** Joystick deflection, -1 (full left) to 1 (full right). */
+  let stick = 0;
   /** Logical x the mouse is pointing at, while it is over the screen. */
   let pointerX: number | null = null;
+  /** Logical x a finger is holding on the screen; the ship slides there. */
+  let tapX: number | null = null;
+  /** Fire once the ship reaches the tapped spot. */
+  let fireOnArrive = false;
 
   function fresh(): Stats {
     return { blocked: 0, ato: 0, fp: 0, passed: 0 };
@@ -211,8 +228,15 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
   function moveDir(): number {
     let d = 0;
     for (const k of heldKeys) d += k;
-    for (const k of heldButtons) d += k;
     return Math.sign(d);
+  }
+
+  /** Drop every held input: keys, joystick and finger. */
+  function releaseAll() {
+    heldKeys.clear();
+    setStick(0);
+    tapX = null;
+    fireOnArrive = false;
   }
 
   function start() {
@@ -228,8 +252,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     flash = 0;
     t = 0;
     loseReason = '';
-    heldKeys.clear();
-    heldButtons.clear();
+    releaseAll();
     pointerX = null;
     setState('playing');
     last = 0;
@@ -249,8 +272,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
   function surrender() {
     window.clearTimeout(winTimer);
     cancelAnimationFrame(raf);
-    heldKeys.clear();
-    heldButtons.clear();
+    releaseAll();
     bullet = null;
     setState('surrendered');
     draw();
@@ -274,29 +296,46 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     if (state === 'playing') raf = requestAnimationFrame(frame);
   }
 
-  function spawn(w: Wave) {
-    const kind: Kind = Math.random() < w.botRate ? 'bot' : 'human';
-    const disguised = kind === 'bot' && Math.random() < w.disguise;
-    const baseX = 16 + Math.random() * (W - 32);
-    ents.push({
+  function makeEnt(baseX: number, y: number, kind: Kind, more: Partial<Ent> = {}): Ent {
+    return {
       x: baseX,
-      y: -SPR_H,
+      y,
       baseX,
       sway: Math.random() * Math.PI * 2,
       kind,
       look: Math.random() < 0.5 ? 'boy' : 'girl',
-      disguised,
-      revealAt: disguised ? w.revealY : Infinity,
+      disguised: false,
+      revealAt: Infinity,
       ring: 0,
       dead: 0,
       deathKind: null,
       gone: false,
-    });
+      canSplit: kind === 'bot',
+      ...more,
+    };
   }
 
-  function fire() {
-    if (state !== 'playing' || bullet) return;
+  function spawn(w: Wave) {
+    const kind: Kind = Math.random() < w.botRate ? 'bot' : 'human';
+    const disguised = kind === 'bot' && Math.random() < w.disguise;
+    ents.push(
+      makeEnt(16 + Math.random() * (W - 32), -SPR_H, kind, { disguised, revealAt: disguised ? w.revealY : Infinity }),
+    );
+  }
+
+  /** Block one, two take its place: the halves fan out from where it was hit. */
+  function split(e: Ent) {
+    for (const side of [-1, 1]) {
+      const baseX = Math.max(16, Math.min(W - 16, e.x + side * 12));
+      ents.push(makeEnt(baseX, e.y - 6, 'bot', { canSplit: false, ring: 0.18 }));
+    }
+  }
+
+  /** Returns whether a captcha left the ship; only one can be in flight. */
+  function fire(): boolean {
+    if (state !== 'playing' || bullet) return false;
     bullet = { x: Math.round(ship), y: SHIP_Y - 4 };
+    return true;
   }
 
   function hit(e: Ent) {
@@ -304,6 +343,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
       stats.blocked++;
       e.dead = 0.3;
       e.deathKind = 'burst';
+      if (WAVES[wi].split && e.canSplit && e.y < SPLIT_MAX_Y) split(e);
     } else {
       stats.fp++;
       e.dead = 0.5;
@@ -316,14 +356,26 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     if (flash > 0) flash -= dt;
     const w = WAVES[wi];
 
+    // Input precedence: keys, then the joystick, then a finger on the screen, then the mouse.
     const dir = moveDir();
     if (dir !== 0) {
       pointerX = null; // keys take over from the mouse until it moves again
       ship += dir * SHIP_SPEED * dt;
+    } else if (stick !== 0) {
+      pointerX = null;
+      ship += stick * SHIP_SPEED * dt;
+    } else if (tapX !== null) {
+      const gap = tapX - ship;
+      const stepX = TAP_SPEED * dt;
+      ship = Math.abs(gap) <= stepX ? tapX : ship + Math.sign(gap) * stepX;
     } else if (pointerX !== null) {
       ship = pointerX;
     }
     ship = Math.max(8, Math.min(W - 8, ship));
+    // A tap's shot waits for the ship to arrive and for the previous captcha to clear.
+    if (fireOnArrive && tapX !== null && Math.abs(ship - Math.max(8, Math.min(W - 8, tapX))) < 1 && fire()) {
+      fireOnArrive = false;
+    }
 
     if (bullet) {
       bullet.y -= BULLET_SPEED * dt;
@@ -576,42 +628,77 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     const dir = MOVE_KEYS[e.code];
     if (dir !== undefined) heldKeys.delete(dir);
   });
-  window.addEventListener('blur', () => heldKeys.clear());
+  window.addEventListener('blur', releaseAll);
 
-  canvas.addEventListener('pointerdown', () => {
-    if (state === 'playing') fire();
-  });
-  // Mouse: the ship follows the cursor across the screen; click fires. Mouse only, so a finger on
-  // the canvas still scrolls the page (the pad below is the touch control).
-  canvas.addEventListener('pointermove', (e) => {
-    if (e.pointerType !== 'mouse' || state !== 'playing') return;
+  const logicalX = (clientX: number) => {
     const r = canvas.getBoundingClientRect();
-    if (r.width === 0) return;
-    pointerX = ((e.clientX - r.left) / r.width) * W;
+    return r.width === 0 ? null : ((clientX - r.left) / r.width) * W;
+  };
+
+  // Mouse: the ship follows the cursor across the screen; click fires.
+  // Touch and pen: the ship slides to where the finger lands and fires on arrival; dragging steers.
+  // The canvas only captures touches while playing (see touch-action in ArcadeGate.astro).
+  canvas.addEventListener('pointerdown', (e) => {
+    if (state !== 'playing') return;
+    if (e.pointerType === 'mouse') return void fire();
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    tapX = logicalX(e.clientX);
+    fireOnArrive = tapX !== null;
   });
-  canvas.addEventListener('pointerleave', () => {
-    pointerX = null;
+  canvas.addEventListener('pointermove', (e) => {
+    if (state !== 'playing') return;
+    if (e.pointerType === 'mouse') pointerX = logicalX(e.clientX);
+    else if (tapX !== null) tapX = logicalX(e.clientX);
+  });
+  const lift = (e: PointerEvent) => {
+    if (e.pointerType !== 'mouse') tapX = null;
+  };
+  canvas.addEventListener('pointerup', lift);
+  canvas.addEventListener('pointercancel', lift);
+  canvas.addEventListener('pointerleave', (e) => {
+    if (e.pointerType === 'mouse') pointerX = null;
   });
 
-  // Touch pad: hold to move, tap to fire.
-  root.querySelectorAll<HTMLButtonElement>('[data-move]').forEach((b) => {
-    const dir = Number(b.dataset.move);
-    const down = (e: Event) => {
-      e.preventDefault();
-      heldButtons.add(dir);
+  // Joystick: press anywhere on the base and slide; the knob follows the thumb and the ship moves at
+  // a speed proportional to how far it is pushed. Releasing re-centres it.
+  const stickEl = root.querySelector<HTMLElement>('[data-stick]');
+  function setStick(v: number) {
+    stick = Math.abs(v) < STICK_DEAD ? 0 : v;
+    stickEl?.style.setProperty('--kx', String(v));
+  }
+  if (stickEl) {
+    let held: number | null = null;
+    const aim = (e: PointerEvent) => {
+      const r = stickEl.getBoundingClientRect();
+      if (r.width === 0) return;
+      setStick(Math.max(-1, Math.min(1, (e.clientX - (r.left + r.width / 2)) / (r.width / 2))));
     };
-    const up = () => heldButtons.delete(dir);
-    b.addEventListener('pointerdown', down);
-    b.addEventListener('pointerup', up);
-    b.addEventListener('pointercancel', up);
-    b.addEventListener('pointerleave', up);
-  });
+    stickEl.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      held = e.pointerId;
+      stickEl.setPointerCapture(e.pointerId);
+      stickEl.classList.add('is-held');
+      aim(e);
+    });
+    stickEl.addEventListener('pointermove', (e) => {
+      if (e.pointerId === held) aim(e);
+    });
+    const letGo = (e: PointerEvent) => {
+      if (e.pointerId !== held) return;
+      held = null;
+      stickEl.classList.remove('is-held');
+      setStick(0);
+    };
+    stickEl.addEventListener('pointerup', letGo);
+    stickEl.addEventListener('pointercancel', letGo);
+  }
   root.querySelector('[data-fire]')?.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     fire();
   });
   document.addEventListener('visibilitychange', () => {
-    heldKeys.clear();
+    releaseAll();
     if (!document.hidden && state === 'playing') {
       last = 0;
       loop();
@@ -622,7 +709,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     new IntersectionObserver(
       (entries) => {
         inView = entries.some((en) => en.isIntersecting);
-        if (!inView) heldKeys.clear();
+        if (!inView) releaseAll();
         if (inView && state === 'playing') {
           last = 0;
           loop();
@@ -649,7 +736,14 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
         bullet: !!bullet,
         ents: ents
           .filter((e) => e.dead <= 0)
-          .map((e) => ({ x: e.x, y: e.y, kind: e.kind, look: e.look, revealed: e.kind === 'human' || !e.disguised })),
+          .map((e) => ({
+            x: e.x,
+            y: e.y,
+            kind: e.kind,
+            look: e.look,
+            revealed: e.kind === 'human' || !e.disguised,
+            canSplit: e.canSplit,
+          })),
       }),
     };
   }

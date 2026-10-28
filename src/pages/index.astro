@@ -4,13 +4,17 @@ import Base from '../layouts/Base.astro';
 import Hero from '../components/Hero.astro';
 import Section from '../components/Section.astro';
 import Story from '../components/Story.astro';
+import WorkCard from '../components/WorkCard.astro';
+import BookCall from '../components/BookCall.astro';
 import TalkRow from '../components/TalkRow.astro';
-import PostItem from '../components/PostItem.astro';
+import PostCarousel from '../components/PostCarousel.astro';
 import ArcadeGate from '../components/ArcadeGate.astro';
 import BonusStage from '../components/BonusStage.astro';
 import JsonLd from '../components/JsonLd.astro';
 import { site } from '../data/site';
 import { stages } from '../data/story';
+import { work } from '../data/work';
+import { consulting } from '../data/consulting';
 import { personNode, personId } from '../lib/schema';
 
 const talks = (await getCollection('talks')).sort(
@@ -54,13 +58,24 @@ const jsonLd = {
   <ArcadeGate>
     <Hero />
 
-    <Section id="story" label="Story" count={count(stages.length)}>
-      <Story stages={stages} />
+    <Section id="work" label="Work" icon="work" count={count(work.length)}>
+      <ul class="cards">
+        {work.map((item) => <WorkCard item={item} />)}
+      </ul>
+    </Section>
+
+    <Section id="consulting" label="Consulting" icon="consulting">
+      <p class="consulting__intro">{consulting.intro}</p>
+      <ul class="cards cards--two">
+        {consulting.offers.map((item) => <WorkCard item={item} />)}
+      </ul>
+      <BookCall />
     </Section>
 
     <Section
       id="talks"
       label="Talks"
+      icon="talks"
       count={count(talks.length)}
     >
       <ol class="rows">
@@ -71,14 +86,13 @@ const jsonLd = {
     <Section
       id="posts"
       label="Posts"
+      icon="posts"
       count={count(posts.length)}
     >
-      <ol class="rows">
-        {posts.map((post) => <PostItem post={post} />)}
-      </ol>
+      <PostCarousel posts={posts} />
     </Section>
 
-    <Section id="writing" label="Writing">
+    <Section id="writing" label="Writing" icon="writing">
       <div class="prose writing">
         <WritingContent />
       </div>
@@ -87,13 +101,38 @@ const jsonLd = {
       )}
     </Section>
 
-    <Section id="photography" label="Photography">
+    <Section id="story" label="Story" icon="story" count={count(stages.length)}>
+      <Story stages={stages} />
+    </Section>
+
+    <Section id="photography" label="Photography" icon="photography">
       <BonusStage />
     </Section>
   </ArcadeGate>
 </Base>
 
 <style>
+  .cards {
+    display: grid;
+    gap: 2rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  @media (min-width: 720px) {
+    .cards {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .cards--two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .consulting__intro {
+    max-width: var(--measure);
+    margin: 0 0 2rem;
+    font-size: 1.1rem;
+    text-wrap: pretty;
+  }
   .writing {
     font-size: 1.1rem;
   }

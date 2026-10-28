@@ -1,0 +1,326 @@
+---
+import { site } from '../data/site';
+import { photos } from '../data/photos';
+
+// A pixel-art photo album over the hotlinked photos in src/data/photos.ts. The script deals a random
+// handful onto its pages on every load and flips the pages; without JS the first spread shows.
+// Line icons for the closing page's links, keyed by hobby label (24x24, stroked).
+const icons: Record<string, string> = {
+  Instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.6" fill="currentColor"/>',
+  'Print store': '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="m3 17 5-5 4 4 3-3 6 6"/><circle cx="15.5" cy="8.5" r="1.5"/>',
+};
+const SHOWN = 7; // plus the closing page makes an even number of pages, so spreads come out full
+const img = (p: (typeof photos)[number]) =>
+  p.srcLarge
+    ? { src: p.src, srcset: `${p.srcLarge} 640w, ${p.src} 1024w`, sizes: '(min-width: 720px) 45vw, 85vw' }
+    : { src: p.src };
+---
+
+{photos.length > 0 && (
+  <div class="album" data-album data-shown={SHOWN}>
+    <div class="album__cover">
+      <ol class="album__pages" tabindex="0" aria-label="Photo album" aria-roledescription="photo album" data-pages>
+        {photos.map((p, i) => (
+          <li class:list={['page', { 'is-shown': i < 2 }]} data-page data-photo hidden={i >= SHOWN}>
+            <figure>
+              <div class="page__mount">
+                <a href={p.href} target="_blank" rel="noopener">
+                  <img {...img(p)} alt={p.alt} loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                </a>
+              </div>
+              {p.place && <figcaption class="page__caption">{p.place}</figcaption>}
+            </figure>
+            <span class="page__num num" aria-hidden="true"></span>
+          </li>
+        ))}
+        <li class="page page--end" data-page>
+          <p class="label">That was a sample</p>
+          <p class="page__end-title">See the full collection.</p>
+          <ul>
+            {site.hobbies.map((h) => (
+              <li>
+                <a href={h.url} target="_blank" rel="noopener">
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <Fragment set:html={icons[h.label]} />
+                  </svg>
+                  {h.label} ↗
+                </a>
+              </li>
+            ))}
+          </ul>
+          <span class="page__num num" aria-hidden="true"></span>
+        </li>
+      </ol>
+    </div>
+    <div class="album__nav">
+      <button type="button" class="carousel__btn" data-prev aria-label="Previous page">←</button>
+      <p class="album__count num" aria-live="polite" data-count></p>
+      <button type="button" class="carousel__btn" data-next aria-label="Next page">→</button>
+    </div>
+  </div>
+)}
+
+<script>
+  const FLIP = 'perspective(1600px) rotateY';
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-album]')) {
+    const book = root.querySelector<HTMLElement>('[data-pages]')!;
+    const prev = root.querySelector<HTMLButtonElement>('[data-prev]')!;
+    const next = root.querySelector<HTMLButtonElement>('[data-next]')!;
+    const count = root.querySelector<HTMLElement>('[data-count]')!;
+    const shown = Number(root.dataset.shown);
+    const wide = matchMedia('(min-width: 720px)');
+    const still = matchMedia('(prefers-reduced-motion: reduce)');
+
+    // Deal a fresh random sample onto the pages (Fisher–Yates), keep the closing page last,
+    // and drop the photos that did not make the cut.
+    const photos = [...book.querySelectorAll<HTMLElement>('[data-photo]')];
+    for (let i = photos.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [photos[i], photos[j]] = [photos[j], photos[i]];
+    }
+    const end = book.querySelector<HTMLElement>('.page--end')!;
+    photos.forEach((li, i) => (i < shown ? book.insertBefore(li, end) : li.remove()));
+    const pages = [...book.querySelectorAll<HTMLElement>('[data-page]')];
+    pages.forEach((p, i) => {
+      p.hidden = false;
+      p.querySelector('.page__num')!.textContent = String(i + 1).padStart(2, '0');
+    });
+
+    let cur = 0;
+    let busy = false;
+    const per = () => (wide.matches ? 2 : 1);
+    const visible = () => pages.slice(cur, cur + per());
+
+    const render = () => {
+      cur -= cur % per();
+      pages.forEach((p, i) => p.classList.toggle('is-shown', i >= cur && i < cur + per()));
+      const first = cur + 1;
+      const last = Math.min(cur + per(), pages.length);
+      count.textContent = `${String(first).padStart(2, '0')}${last > first ? `–${String(last).padStart(2, '0')}` : ''} / ${String(pages.length).padStart(2, '0')}`;
+      prev.disabled = cur === 0;
+      next.disabled = cur + per() >= pages.length;
+      // Warm up the next spread so its photos are there when the page lands.
+      pages.slice(cur + per(), cur + per() * 2).forEach((p) => p.querySelector('img')?.setAttribute('loading', 'eager'));
+    };
+
+    // A page turn in hard steps: the leaf swings up to the spine, the spread changes, the new leaf
+    // swings down from it. Forward turns hinge the outgoing right page on its left edge.
+    const turn = async (dir: 1 | -1) => {
+      const target = cur + dir * per();
+      if (busy || target < 0 || target >= pages.length) return;
+      busy = true;
+      const timing = { duration: 180, easing: 'steps(4, end)', fill: 'forwards' as const };
+      const out = dir === 1 ? visible().at(-1)! : visible()[0];
+      if (!still.matches) {
+        out.style.transformOrigin = dir === 1 ? 'left center' : 'right center';
+        await out.animate([{ transform: `${FLIP}(0deg)` }, { transform: `${FLIP}(${dir * -90}deg)` }], timing).finished;
+      }
+      out.getAnimations().forEach((a) => a.cancel());
+      cur = target;
+      render();
+      if (!still.matches) {
+        const inn = dir === 1 ? visible()[0] : visible().at(-1)!;
+        inn.style.transformOrigin = dir === 1 ? 'right center' : 'left center';
+        await inn.animate([{ transform: `${FLIP}(${dir * 90}deg)` }, { transform: `${FLIP}(0deg)` }], timing).finished;
+        inn.getAnimations().forEach((a) => a.cancel());
+      }
+      busy = false;
+    };
+
+    prev.addEventListener('click', () => turn(-1));
+    next.addEventListener('click', () => turn(1));
+    book.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        turn(e.key === 'ArrowLeft' ? -1 : 1);
+      }
+    });
+    // Swipe to turn on touch screens.
+    let x0: number | null = null;
+    book.addEventListener('pointerdown', (e) => (x0 = e.pointerType === 'mouse' ? null : e.clientX));
+    book.addEventListener('pointerup', (e) => {
+      if (x0 === null) return;
+      const dx = e.clientX - x0;
+      x0 = null;
+      if (Math.abs(dx) > 40) turn(dx < 0 ? 1 : -1);
+    });
+    wide.addEventListener('change', render);
+    root.dataset.ready = '';
+    render();
+  }
+</script>
+
+<style>
+  /* One "pixel" is --px; edges are hard box-shadows, like the TV in the hero. */
+  .album {
+    --px: 4px;
+    --album-edge: var(--accent-dim);
+    --album-page: var(--accent-fill);
+    margin: 0 0 1.5rem;
+  }
+  .album__cover {
+    margin: var(--px);
+    padding: calc(var(--px) * 4);
+    background: var(--paper-2);
+    box-shadow:
+      0 calc(var(--px) * -1) 0 var(--album-edge),
+      0 var(--px) 0 var(--album-edge),
+      calc(var(--px) * -1) 0 0 var(--album-edge),
+      var(--px) 0 0 var(--album-edge),
+      inset 0 var(--px) 0 var(--line),
+      inset 0 calc(var(--px) * -2) 0 var(--paper);
+  }
+  .album__pages {
+    position: relative;
+    display: grid;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    touch-action: pan-y;
+  }
+  .album__pages:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: calc(var(--px) * 2);
+  }
+  @media (min-width: 720px) {
+    .album__pages {
+      grid-template-columns: 1fr 1fr;
+    }
+    /* The spine: a dark gutter with pixel stitches down the middle. */
+    .album__pages::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: calc(50% - var(--px));
+      width: calc(var(--px) * 2);
+      background: repeating-linear-gradient(to bottom, var(--album-edge) 0 calc(var(--px) * 2), var(--paper) calc(var(--px) * 2) calc(var(--px) * 4));
+      z-index: 1;
+    }
+  }
+  .page {
+    position: relative;
+    display: none;
+    padding: calc(var(--px) * 5) calc(var(--px) * 5) calc(var(--px) * 8);
+    background: var(--album-page);
+    backface-visibility: hidden;
+  }
+  .page.is-shown {
+    display: block;
+  }
+  .page[hidden] {
+    display: none;
+  }
+  .page figure {
+    margin: 0;
+  }
+  /* The photo sits in four stepped pixel corner mounts. */
+  .page__mount {
+    position: relative;
+  }
+  .page__mount img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+  }
+  .page__mount::before,
+  .page__mount::after,
+  .page__mount a::before,
+  .page__mount a::after {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    width: calc(var(--px) * 4);
+    height: calc(var(--px) * 4);
+    background: var(--ink-2);
+    clip-path: polygon(0 0, 100% 0, 100% 25%, 75% 25%, 75% 50%, 50% 50%, 50% 75%, 25% 75%, 25% 100%, 0 100%);
+    pointer-events: none;
+  }
+  .page__mount::before {
+    top: calc(var(--px) * -1);
+    left: calc(var(--px) * -1);
+  }
+  .page__mount::after {
+    top: calc(var(--px) * -1);
+    right: calc(var(--px) * -1);
+    transform: scaleX(-1);
+  }
+  .page__mount a::before {
+    bottom: calc(var(--px) * -1);
+    left: calc(var(--px) * -1);
+    transform: scaleY(-1);
+  }
+  .page__mount a::after {
+    bottom: calc(var(--px) * -1);
+    right: calc(var(--px) * -1);
+    transform: scale(-1);
+  }
+  .page__caption {
+    margin-top: calc(var(--px) * 3);
+    font-family: var(--font-pixel);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-2);
+  }
+  .page__num {
+    position: absolute;
+    bottom: calc(var(--px) * 2);
+    font-family: var(--font-pixel);
+    font-size: 0.65rem;
+    color: var(--accent-dim);
+  }
+  .page:nth-child(odd) .page__num {
+    left: calc(var(--px) * 5);
+  }
+  .page:nth-child(even) .page__num {
+    right: calc(var(--px) * 5);
+  }
+  .page--end.is-shown {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100%;
+  }
+  .page--end p {
+    margin: 0;
+  }
+  .page__end-title {
+    margin-top: 0.4rem !important;
+    font-size: 1.2rem;
+  }
+  .page--end a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .page--end svg {
+    flex: none;
+  }
+  .page--end ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+  }
+  .album__nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  .album:not([data-ready]) .album__nav {
+    display: none;
+  }
+  .album__count {
+    margin: 0;
+    font-family: var(--font-pixel);
+    font-size: 0.75rem;
+    color: var(--ink-2);
+  }
+</style>

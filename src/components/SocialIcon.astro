@@ -1,0 +1,14 @@
+---
+import { socialIcons } from '../data/socialIcons';
+
+interface Props {
+  /** A label from site.socials, e.g. "LinkedIn". */
+  label: string;
+  size?: number;
+}
+const { label, size = 20 } = Astro.props;
+---
+
+<svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" fill="currentColor">
+  <path d={socialIcons[label]} />
+</svg>

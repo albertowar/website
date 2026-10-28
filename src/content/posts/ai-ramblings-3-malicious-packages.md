@@ -5,4 +5,5 @@ date: 2026-05-26
 publication: "LinkedIn"
 series: "AI Ramblings"
 summary: "AI-accelerated development widens exposure to supply chain attacks. A tour of 2026 incidents and a defense plan mapped onto the incident response lifecycle: dependency cooldowns, package proxies, detection and containment."
+cover: "./covers/ai-ramblings-3-malicious-packages.png"
 ---

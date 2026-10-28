@@ -262,3 +262,63 @@ h1[tabindex='-1']:focus,
 h2[tabindex='-1']:focus {
   outline: none;
 }
+
+/* Scroll-snap carousel (photos, posts). Controls live in src/scripts/carousel.ts. */
+.carousel__track {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel__track:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.carousel__track > * {
+  flex: 0 0 85%;
+  scroll-snap-align: start;
+}
+
+.carousel__track > [hidden] {
+  display: none;
+}
+
+.carousel__nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.carousel__btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.carousel__btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.carousel__btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

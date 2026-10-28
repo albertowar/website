@@ -1,118 +1,388 @@
 ---
 import { Image } from 'astro:assets';
 import { site } from '../data/site';
+import SocialIcon from './SocialIcon.astro';
 
-// Drop a photo at src/assets/hero.jpg (or .png/.webp) and it fills the right column above the facts.
-const heroImages = import.meta.glob<{ default: ImageMetadata }>('../assets/hero.{jpg,jpeg,png,webp}', {
+// Drop a landscape photo in src/assets/hero/ (.jpg, .png or .webp) and it sits beside the text.
+// With several, the first by file name wins. Alt text lives in site.heroPhoto.
+const heroImages = import.meta.glob<{ default: ImageMetadata }>('../assets/hero/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}', {
   eager: true,
 });
-const hero = Object.values(heroImages)[0]?.default;
+const hero = Object.entries(heroImages).sort(([a], [b]) => a.localeCompare(b))[0]?.[1].default;
+
+const quotes: readonly { text: string; by?: string }[] = site.quotes;
+
 ---
 
 <section class="hero">
-  <div class="wrap hero__grid">
+  <div class="wrap hero__bar">
+    <button type="button" class="replay" data-replay aria-label="Replay Login Queue">
+      <svg viewBox="0 0 7 7" width="12" height="12" shape-rendering="crispEdges" aria-hidden="true" fill="currentColor">
+        <path d="M1 0h2v1h1v1h1v1h1v1h-1v1h-1v1h-1v1h-2z" />
+      </svg>
+      Replay
+    </button>
+  </div>
+  <div class={hero ? 'wrap hero__inner hero__inner--photo' : 'wrap hero__inner'}>
     <div class="hero__text">
       <p class="label">{site.role}</p>
       <h1>{site.headline}</h1>
       <p class="hero__summary">{site.summary}</p>
-      <p class="hero__summary muted">{site.summary2}</p>
-      <p class="hero__links">
-        <a href="#story">Read the story ↓</a>
-        <a href="#talks">Talks</a>
-      </p>
-    </div>
-    <div class="hero__side">
-      {hero && (
-        <Image class="hero__photo" src={hero} alt={site.name} widths={[480, 800]} sizes="(min-width: 960px) 28vw, 100vw" loading="eager" />
-      )}
-      <dl class="facts">
-        {site.facts.map((f) => (
-          <div class="facts__row">
-            <dt class="label">{f.term}</dt>
-            <dd>{f.detail}</dd>
-          </div>
+      <ul class="hero__socials">
+        {site.socials.map((s) => (
+          <li>
+            <a
+              href={s.url}
+              target={s.url.startsWith('mailto:') ? undefined : '_blank'}
+              rel="me noopener"
+              aria-label={s.label}
+              title={s.label}
+            >
+              <SocialIcon label={s.label} size={22} />
+            </a>
+          </li>
         ))}
-        <div class="facts__row">
-          <dt class="label">Links</dt>
-          <dd class="facts__links">
-            {site.socials.map((s) => (
-              <a href={s.url} target={s.url.startsWith('mailto:') ? undefined : '_blank'} rel="me noopener">{s.label}</a>
-            ))}
-          </dd>
-        </div>
-      </dl>
+      </ul>
     </div>
+    {hero && (
+      <figure class="hero__photo">
+        <div class="tv">
+          <div class="tv__antenna" aria-hidden="true"></div>
+          <div class="tv__body">
+            <div class="tv__screen">
+              <Image
+                src={hero}
+                alt={site.heroPhoto.alt}
+                widths={[640, 960, 1400]}
+                sizes="(min-width: 960px) 36vw, 90vw"
+                loading="eager"
+                fetchpriority="high"
+              />
+            </div>
+            <div class="tv__panel" aria-hidden="true">
+              <span class="tv__knob"></span>
+              <span class="tv__knob"></span>
+              <span class="tv__grille"></span>
+              <span class="tv__led"></span>
+            </div>
+          </div>
+          <div class="tv__feet" aria-hidden="true"></div>
+        </div>
+      </figure>
+    )}
+    <figure class="quote" data-quotes={JSON.stringify(quotes)}>
+      <p class="label">Quote</p>
+      <blockquote>{quotes[0].text}</blockquote>
+      <figcaption class="muted" hidden={!quotes[0].by}>{quotes[0].by}</figcaption>
+    </figure>
   </div>
 </section>
 
+<script>
+  // A new quote on every page load: step through the list from a random start, so a visitor sees
+  // them all before any repeats. Without storage it is random each time; without JS the first shows.
+  const KEY = 'hero-quote';
+  const fig = document.querySelector<HTMLElement>('.quote[data-quotes]');
+  if (fig) {
+    const quotes: { text: string; by?: string }[] = JSON.parse(fig.dataset.quotes!);
+    let i = Math.floor(Math.random() * quotes.length);
+    try {
+      const prev = Number(localStorage.getItem(KEY));
+      if (localStorage.getItem(KEY) !== null && Number.isInteger(prev)) i = (prev + 1) % quotes.length;
+      localStorage.setItem(KEY, String(i));
+    } catch {
+      /* storage blocked: stay random */
+    }
+    const q = quotes[i];
+    fig.querySelector('blockquote')!.textContent = q.text;
+    const by = fig.querySelector('figcaption')!;
+    by.textContent = q.by ?? '';
+    by.hidden = !q.by;
+  }
+</script>
+
 <style>
   .hero {
+    position: relative;
     min-height: min(calc(100svh - var(--bar)), 52rem);
     display: flex;
     align-items: center;
-    padding: 3rem 0;
+    padding: 4.5rem 0 3rem;
   }
-  .hero__grid {
+  /* Replay Login Queue: an arcade-style play button in the hero's top-right corner. */
+  .hero__bar {
+    position: absolute;
+    top: 1rem;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: flex-end;
+    pointer-events: none;
+  }
+  .replay {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.8rem;
+    font-family: var(--font-pixel);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 0;
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .replay:hover,
+  .replay:focus-visible {
+    background: var(--accent);
+    color: var(--paper);
+  }
+  .replay svg {
+    display: block;
+    animation: replay-blink 1.2s steps(2, jump-none) infinite;
+    transition: transform 120ms steps(2);
+  }
+  .replay:hover svg,
+  .replay:focus-visible svg {
+    animation: none;
+    transform: translateX(2px);
+  }
+  @keyframes replay-blink {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.25;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .replay svg {
+      animation: none;
+      transition: none;
+    }
+    .replay:hover svg,
+    .replay:focus-visible svg {
+      transform: none;
+    }
+  }
+  .hero__inner {
     display: grid;
-    gap: 3rem 2rem;
-    align-items: end;
+    gap: 2rem 3rem;
+    align-items: center;
   }
   @media (min-width: 960px) {
-    .hero__grid {
-      grid-template-columns: repeat(12, minmax(0, 1fr));
+    .hero__inner--photo {
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
     }
-    .hero__text {
-      grid-column: 3 / 9;
-    }
-    .hero__side {
-      grid-column: 10 / 13;
-    }
+  }
+  .hero__text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
   }
   h1 {
     margin: 1rem 0 1.5rem;
-    max-width: 18ch;
+    max-width: 24ch;
   }
   .hero__summary {
-    max-width: 52ch;
     text-wrap: pretty;
   }
-  .hero__summary.muted {
-    font-size: 1rem;
-  }
-  .hero__links {
+  .hero__socials {
+    align-self: center;
     display: flex;
-    gap: 1.75rem;
-    margin: 1.5rem 0 0;
+    gap: 1.25rem;
+    list-style: none;
+    margin: 1.75rem 0 0;
+    padding: 0;
+  }
+  .hero__socials a {
+    display: block;
+    color: var(--ink-2);
+    transition: color 150ms ease;
+  }
+  .hero__socials a:hover {
+    color: var(--accent);
+  }
+  .hero__socials svg {
+    display: block;
+  }
+  .quote {
+    grid-column: 1 / -1;
+    margin: 0.5rem 0 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+    align-self: stretch;
+  }
+  .quote blockquote {
+    max-width: 52ch;
+    margin: 0.5rem 0 0;
+    font-style: italic;
+    font-size: 1.05rem;
+    text-wrap: pretty;
+  }
+  .quote figcaption {
+    margin-top: 0.35rem;
+    font-size: 0.9rem;
+  }
+  .quote figcaption::before {
+    content: '— ';
   }
   .hero__photo {
+    margin: 0;
+  }
+
+  /* Pixel-art TV around the photo. One "pixel" is --px; edges are drawn with hard box-shadows. */
+  .tv {
+    --px: 4px;
+    --tv-body: var(--paper-2);
+    --tv-edge: var(--accent-dim);
+    --tv-shade: var(--line);
+  }
+  .tv__antenna {
+    position: relative;
+    width: calc(var(--px) * 6);
+    height: calc(var(--px) * 2);
+    margin: calc(var(--px) * 9) auto 0;
+    background: var(--tv-edge);
+  }
+  /* Two rabbit ears, a staircase of pixels each, with a cyan tip. */
+  .tv__antenna::before,
+  .tv__antenna::after {
+    content: '';
+    position: absolute;
+    top: calc(var(--px) * -1);
+    width: var(--px);
+    height: var(--px);
+    background: var(--tv-edge);
+  }
+  .tv__antenna::before {
+    left: 0;
+    box-shadow:
+      calc(var(--px) * -1) calc(var(--px) * -1) 0 var(--tv-edge),
+      calc(var(--px) * -2) calc(var(--px) * -2) 0 var(--tv-edge),
+      calc(var(--px) * -3) calc(var(--px) * -3) 0 var(--tv-edge),
+      calc(var(--px) * -4) calc(var(--px) * -4) 0 var(--tv-edge),
+      calc(var(--px) * -5) calc(var(--px) * -5) 0 var(--tv-edge),
+      calc(var(--px) * -6) calc(var(--px) * -6) 0 var(--tv-edge),
+      calc(var(--px) * -7) calc(var(--px) * -7) 0 var(--accent),
+      calc(var(--px) * -8) calc(var(--px) * -7) 0 var(--accent),
+      calc(var(--px) * -7) calc(var(--px) * -8) 0 var(--accent),
+      calc(var(--px) * -8) calc(var(--px) * -8) 0 var(--accent);
+  }
+  .tv__antenna::after {
+    right: 0;
+    box-shadow:
+      var(--px) calc(var(--px) * -1) 0 var(--tv-edge),
+      calc(var(--px) * 2) calc(var(--px) * -2) 0 var(--tv-edge),
+      calc(var(--px) * 3) calc(var(--px) * -3) 0 var(--tv-edge),
+      calc(var(--px) * 4) calc(var(--px) * -4) 0 var(--tv-edge),
+      calc(var(--px) * 5) calc(var(--px) * -5) 0 var(--tv-edge),
+      calc(var(--px) * 6) calc(var(--px) * -5) 0 var(--accent),
+      calc(var(--px) * 5) calc(var(--px) * -6) 0 var(--accent),
+      calc(var(--px) * 6) calc(var(--px) * -6) 0 var(--accent);
+  }
+  .tv__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) calc(var(--px) * 11);
+    gap: calc(var(--px) * 3);
+    margin: var(--px);
+    padding: calc(var(--px) * 4);
+    background: var(--tv-body);
+    /* Notched pixel outline plus a one-pixel highlight inside the top edge. */
+    box-shadow:
+      0 calc(var(--px) * -1) 0 var(--tv-edge),
+      0 var(--px) 0 var(--tv-edge),
+      calc(var(--px) * -1) 0 0 var(--tv-edge),
+      var(--px) 0 0 var(--tv-edge),
+      inset 0 var(--px) 0 var(--tv-shade),
+      inset 0 calc(var(--px) * -2) 0 var(--paper);
+  }
+  .tv__screen {
+    position: relative;
+    margin: var(--px);
+    background: var(--paper);
+    box-shadow:
+      0 calc(var(--px) * -1) 0 var(--paper),
+      0 var(--px) 0 var(--paper),
+      calc(var(--px) * -1) 0 0 var(--paper),
+      var(--px) 0 0 var(--paper);
+  }
+  .tv__screen img {
     display: block;
     width: 100%;
     height: auto;
-    aspect-ratio: 4 / 5;
+    aspect-ratio: 4 / 3;
     object-fit: cover;
-    margin-bottom: 2rem;
+    /* Keeps the speaker and the slide in frame when the 3:2 shot is cropped. */
+    object-position: 60% 50%;
   }
-  .facts {
-    margin: 0;
-    border-bottom: 1px solid var(--line);
+  /* Scanlines and a faint cyan glow from the tube. */
+  .tv__screen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(to bottom, transparent 0 2px, rgb(14 16 32 / 0.28) 2px 3px);
+    box-shadow: inset 0 0 calc(var(--px) * 8) rgb(94 230 255 / 0.18);
   }
-  .facts__row {
-    display: grid;
-    grid-template-columns: 4.5rem 1fr;
-    gap: 1rem;
-    padding: 0.6rem 0;
-    border-top: 1px solid var(--line);
-  }
-  dt {
-    padding-top: 0.2rem;
-  }
-  dd {
-    margin: 0;
-    font-size: 0.95rem;
-  }
-  .facts__links {
+  .tv__panel {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1rem;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--px) * 3);
+    padding-top: var(--px);
+  }
+  .tv__knob {
+    position: relative;
+    width: calc(var(--px) * 6);
+    height: calc(var(--px) * 6);
+    margin: var(--px);
+    background: var(--paper);
+    box-shadow:
+      0 calc(var(--px) * -1) 0 var(--ink-2),
+      0 var(--px) 0 var(--ink-2),
+      calc(var(--px) * -1) 0 0 var(--ink-2),
+      var(--px) 0 0 var(--ink-2);
+  }
+  .tv__knob::after {
+    content: '';
+    position: absolute;
+    left: calc(var(--px) * 2.5);
+    top: 0;
+    width: var(--px);
+    height: calc(var(--px) * 3);
+    background: var(--accent);
+  }
+  .tv__knob + .tv__knob::after {
+    transform: rotate(90deg);
+    top: calc(var(--px) * 1);
+  }
+  .tv__grille {
+    width: calc(var(--px) * 8);
+    flex: 1;
+    min-height: calc(var(--px) * 6);
+    background: repeating-linear-gradient(to bottom, var(--tv-shade) 0 var(--px), transparent var(--px) calc(var(--px) * 2));
+  }
+  .tv__led {
+    width: calc(var(--px) * 2);
+    height: calc(var(--px) * 2);
+    background: var(--signal);
+    box-shadow: 0 0 calc(var(--px) * 2) var(--signal);
+  }
+  .tv__feet {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 calc(var(--px) * 6);
+  }
+  .tv__feet::before,
+  .tv__feet::after {
+    content: '';
+    width: calc(var(--px) * 5);
+    height: calc(var(--px) * 2);
+    margin-top: var(--px);
+    background: var(--tv-edge);
   }
 </style>

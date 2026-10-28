@@ -5,6 +5,8 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { site } from '../data/site';
+import { work } from '../data/work';
+import { consulting } from '../data/consulting';
 
 export const GET: APIRoute = async ({ site: siteUrl }) => {
   const origin = siteUrl ?? new URL(`https://${site.domain}`);
@@ -23,8 +25,19 @@ export const GET: APIRoute = async ({ site: siteUrl }) => {
     '',
     `- Role: ${site.jobTitle} at ${site.employer.name}, ${site.location}.`,
     `- ${site.summary}`,
-    `- ${site.summary2}`,
     ...site.socials.map((s) => `- ${s.label}: ${s.url.startsWith('mailto:') ? s.handle : s.url}`),
+    '',
+    '## Work',
+    '',
+    ...work.map((w) => `- ${w.title}: ${w.text}${w.link ? ` ${w.link.url}` : ''}`),
+    '',
+    '## Consulting',
+    '',
+    `- ${consulting.intro}`,
+    ...consulting.offers.map((o) => `- ${o.title}: ${o.text}`),
+    ...(consulting.events.length
+      ? consulting.events.map((e) => `- Book ${e.label}: https://cal.com/${e.calLink}`)
+      : [`- Contact: ${site.socials.find((s) => s.url.startsWith('mailto:'))?.handle}`]),
     '',
     '## Talks',
     '',

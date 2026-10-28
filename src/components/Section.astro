@@ -1,17 +1,23 @@
 ---
+import PixelIcon from './PixelIcon.astro';
+import type { IconName } from '../data/icons';
+
 interface Props {
   id: string;
   label: string;
+  /** Pixel icon shown before the label. */
+  icon?: IconName;
   /** Tabular count shown after the label, e.g. "04". */
   count?: string;
   kicker?: string;
 }
-const { id, label, count, kicker } = Astro.props;
+const { id, label, icon, count, kicker } = Astro.props;
 ---
 
 <section id={id} class="section">
   <div class="wrap section__grid">
     <h2 class="section__label label">
+      {icon && <PixelIcon name={icon} />}
       <span>{label}</span>
       {count && <span class="section__count num" aria-hidden="true">{count}</span>}
     </h2>
@@ -33,11 +39,16 @@ const { id, label, count, kicker } = Astro.props;
   }
   .section__label {
     display: flex;
+    align-items: center;
     gap: 1rem;
     font-size: 0.8rem;
     font-weight: 500;
     letter-spacing: 0.04em;
     line-height: 1;
+  }
+  .section__label :global(.pixel-icon) {
+    flex: none;
+    margin-right: -0.4rem;
   }
   .section__count {
     color: var(--ink-2);
@@ -62,6 +73,12 @@ const { id, label, count, kicker } = Astro.props;
       writing-mode: vertical-rl;
       transform: rotate(180deg);
       padding-bottom: 0.1rem;
+    }
+    /* The label is turned to read bottom-to-top; turn the icon back so it stays upright. */
+    .section__label :global(.pixel-icon) {
+      transform: rotate(180deg);
+      margin-right: 0;
+      margin-bottom: -0.4rem;
     }
   }
 </style>

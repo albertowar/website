@@ -1,15 +1,28 @@
 ---
 import { site } from '../data/site';
+import SocialIcon from './SocialIcon.astro';
 const year = new Date().getFullYear();
 ---
 
 <footer class="footer">
+  <div class="wrap footer__invite">
+    <p class="label">Get in touch</p>
+    <p>Happy to talk anti-abuse, account security and application security, or a talk at your event.</p>
+  </div>
   <div class="wrap footer__inner">
     <p class="num">© {year} {site.name}</p>
     <ul>
       {site.socials.map((s) => (
         <li>
-          <a href={s.url} rel="me noopener" target={s.url.startsWith('mailto:') ? undefined : '_blank'}>{s.label}</a>
+          <a
+            href={s.url}
+            rel="me noopener"
+            target={s.url.startsWith('mailto:') ? undefined : '_blank'}
+            aria-label={s.label}
+            title={s.label}
+          >
+            <SocialIcon label={s.label} />
+          </a>
         </li>
       ))}
     </ul>
@@ -24,6 +37,14 @@ const year = new Date().getFullYear();
     font-size: 0.9rem;
     color: var(--ink-2);
   }
+  .footer__invite {
+    margin-bottom: 2rem;
+  }
+  .footer__invite p + p {
+    margin-top: 0.4rem;
+    color: var(--ink);
+    font-size: 1.05rem;
+  }
   .footer__inner {
     display: flex;
     flex-wrap: wrap;
@@ -36,9 +57,21 @@ const year = new Date().getFullYear();
   ul {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 1.25rem;
     list-style: none;
     margin: 0;
     padding: 0;
+  }
+  ul a {
+    display: block;
+    color: var(--ink-2);
+    transition: color 150ms ease;
+  }
+  ul a:hover {
+    color: var(--accent);
+  }
+  ul svg {
+    display: block;
   }
 </style>

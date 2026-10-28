@@ -1,116 +1,15 @@
 ---
-import { Image } from 'astro:assets';
 import { site } from '../data/site';
-
-// Drop up to three photos in src/assets/photos/ and they show as a band above the links.
-const photoModules = import.meta.glob<{ default: ImageMetadata }>('../assets/photos/*.{jpg,jpeg,png,webp}', {
-  eager: true,
-});
-const photos = Object.entries(photoModules)
-  .sort(([a], [b]) => a.localeCompare(b))
-  .map(([, m]) => m.default)
-  .slice(0, 3);
+import PhotoAlbum from './PhotoAlbum.astro';
 ---
 
 <div class="bonus">
-  {photos.length > 0 && (
-    <ul class="photos">
-      {photos.map((p) => (
-        <li>
-          <Image src={p} alt="" widths={[480, 800]} sizes="(min-width: 960px) 25vw, 100vw" />
-        </li>
-      ))}
-    </ul>
-  )}
   <p class="bonus__intro muted">{site.photographyBlurb}</p>
-  <ul class="rows">
-    {site.hobbies.map((h) => (
-      <li class="row link-row">
-        <a href={h.url} target="_blank" rel="noopener">{h.label}</a>
-        <span class="link-row__handle label">{h.handle}</span>
-        <span class="link-row__blurb muted">{h.blurb}</span>
-      </li>
-    ))}
-  </ul>
-
-  <h3 class="bonus__h">Off duty</h3>
-  <ul class="rows">
-    {site.offDuty.map((x) => (
-      <li class="row plain-row">{x}</li>
-    ))}
-  </ul>
-
-  <p class="bonus__replay">
-    <button type="button" class="linkish" data-replay>Replay Login Queue</button>
-  </p>
+  <PhotoAlbum />
 </div>
 
 <style>
-  .photos {
-    display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-    list-style: none;
-    margin: 0 0 1.5rem;
-    padding: 0;
-  }
-  .photos img {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 3 / 2;
-    object-fit: cover;
-  }
   .bonus__intro {
     margin: 0 0 1.25rem;
-  }
-  .bonus__h {
-    margin-top: 3rem;
-    margin-bottom: 1rem;
-  }
-  .link-row {
-    display: grid;
-    gap: 0.2rem 1.5rem;
-    padding: 0.9rem 0;
-  }
-  @media (min-width: 720px) {
-    .link-row {
-      grid-template-columns: 8rem 14rem minmax(0, 1fr);
-    }
-  }
-  .link-row a {
-    text-decoration: none;
-  }
-  .link-row a::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-  }
-  .link-row a:hover {
-    text-decoration: underline;
-  }
-  .link-row__handle {
-    padding-top: 0.2rem;
-  }
-  .plain-row {
-    padding: 0.9rem 0;
-  }
-  .bonus__replay {
-    margin: 2.5rem 0 0;
-    font-size: 0.9rem;
-  }
-  .linkish {
-    background: none;
-    border: 0;
-    padding: 0;
-    cursor: pointer;
-    color: var(--ink-2);
-    text-decoration: underline;
-    text-decoration-color: var(--accent-dim);
-    text-underline-offset: 0.2em;
-  }
-  .linkish:hover {
-    color: var(--accent);
-    text-decoration-color: var(--accent);
   }
 </style>

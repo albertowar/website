@@ -2,19 +2,16 @@ export const site = {
   name: 'Alberto Guerra González',
   shortName: 'Alberto Guerra',
   domain: 'albertoguerra.com',
-  role: 'Staff Security Engineer · Anti-abuse, account security & application security',
+  role: 'Staff Security Engineer · Anti-Abuse, Account Security & Application Security',
   jobTitle: 'Staff Security Engineer',
   employer: { name: 'Riot Games', url: 'https://www.riotgames.com/' },
   location: 'Dublin, Ireland',
   address: { locality: 'Dublin', country: 'IE' },
   headline: 'I keep bots and account thieves away from players.',
-  // TODO(alberto): add the years ("N years at Microsoft and Riot Games").
   // Keep Player Security work described in generic terms (antibot, account security, account
   // remediation): no product names, mechanisms or figures.
   summary:
-    "Staff Security Engineer, previously at Microsoft and now at Riot Games, focused on bot mitigation and account takeover prevention. Founding engineer of Riot's Player Security team, where I work on antibot, account security and account remediation for players across Riot's games.",
-  summary2:
-    'Product-minded: the problem I solve for players matters more than the stack I solve it with. I take the growth of the people around me seriously and have mentored many software and QA engineers.',
+    "Staff Security Engineer, 12+ years at Microsoft and Riot Games, focused on bot mitigation and account takeover prevention. Founding engineer of Riot's Player Security team, where I work on antibot, account security and account remediation for players across Riot's games. I also battle phishing, scalpers and social engineering.",
   /** Long form, for Open Graph and llms.txt. */
   description:
     'Alberto Guerra González, Staff Security Engineer in Dublin: bot mitigation and account takeover prevention at Riot Games, talks, articles on AI and security, an upcoming book, and photography.',
@@ -28,11 +25,6 @@ export const site = {
     'Anti-abuse engineering',
     'Application security',
     'Online game security',
-  ],
-  facts: [
-    { term: 'Based', detail: 'Dublin, Ireland' },
-    { term: 'Now', detail: 'Riot Games, Player Security' },
-    { term: 'Before', detail: 'Microsoft, Azure DNS' },
   ],
   socials: [
     { label: 'LinkedIn', handle: 'in/albertowar', url: 'https://www.linkedin.com/in/albertowar/' },
@@ -55,10 +47,28 @@ export const site = {
       blurb: 'Prints and licenses of selected photographs.',
     },
   ],
-  offDuty: [
-    'An Erasmus year at the University of Oulu, Finland.',
-    'Spanish and English.',
-    'Took a Game Hacking with Cheat Engine course. For research.',
+  /** The photo in src/assets/hero/. */
+  heroPhoto: {
+    alt: 'Alberto on stage at Hackers Week 2026, University of Málaga, with the audience in front.',
+  },
+  /** Hero quote, a new one on each page load. Leave `by` out when the origin is unclear. */
+  quotes: [
+    { text: 'There is no failure, only feedback.' },
+    { text: 'Perfect is the enemy of done.' },
+    { text: 'If, if, if… “if” doesn’t exist.', by: 'Rafael Nadal' },
+    {
+      text: 'Yesterday is history, tomorrow is a mystery, but today is a gift. That is why it is called the present.',
+      by: 'Master Oogway, Kung Fu Panda',
+    },
+    { text: 'I can accept failure, everyone fails at something. But I can’t accept not trying.', by: 'Michael Jordan' },
+    {
+      text: 'It is hard to fail, but it is worse never to have tried to succeed.',
+      by: 'Theodore Roosevelt, The Strenuous Life (1899)',
+    },
+    { text: 'Do. Or do not. There is no try.', by: 'Yoda, The Empire Strikes Back' },
+    { text: 'The greatest teacher, failure is.', by: 'Yoda, The Last Jedi' },
+    { text: 'The only way to learn is to live.', by: 'Matt Haig, The Midnight Library' },
+    { text: 'God is an ever-receding pocket of scientific ignorance.', by: 'Neil deGrasse Tyson' },
   ],
 } as const;
 

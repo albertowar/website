@@ -19,13 +19,15 @@ const talks = defineCollection({
 
 const posts = defineCollection({
   loader: glob({ base: './src/content/posts', pattern: '**/*.md' }),
-  schema: z.object({
+  schema: ({ image }) => z.object({
     title: z.string(),
     url: z.url(),
     date: z.coerce.date(),
     publication: z.string().default('LinkedIn'),
     series: z.string().optional(),
     summary: z.string(),
+    /** Cover image relative to the post file, e.g. ./covers/slug.jpg. Shown on the post's card. */
+    cover: image().optional(),
   }),
 });
 

@@ -1,0 +1,407 @@
+---
+import type { Stage } from '../data/story';
+
+// The career as a pixel "world map": a study lane and a work lane on one time scale, each stage a
+// segment sized by its real dates. Hovering, focusing or tapping a segment opens its card.
+// Without JS the cards are a plain list under the map.
+interface Props {
+  stages: readonly Stage[];
+}
+const { stages } = Astro.props;
+
+const year = (s: string) => {
+  const [y, m] = s.split('-').map(Number);
+  return y + (m ? (m - 1) / 12 : 0);
+};
+const now = new Date();
+const end = now.getFullYear() + now.getMonth() / 12;
+const start = Math.min(...stages.map((s) => year(s.from)));
+const pct = (y: number) => ((y - start) / (end - start)) * 100;
+
+const segs = stages.map((s, i) => {
+  const from = year(s.from);
+  const to = s.to ? year(s.to) : end;
+  const tone = s.lane === 'study' ? 'study' : !s.to ? 'now' : s.title.startsWith('Riot') ? 'riot' : 'past';
+  return { ...s, n: String(i + 1).padStart(2, '0'), from, to, left: pct(from), width: pct(to) - pct(from), tone };
+});
+type Seg = (typeof segs)[number];
+// Overlapping stages in a lane (Oulu falls inside Málaga) go on their own row under it.
+const rowsOf = (lane: Stage['lane']) => {
+  const rows: Seg[][] = [];
+  for (const s of segs.filter((x) => x.lane === lane)) {
+    const row = rows.find((r) => r.every((o) => s.from >= o.to || s.to <= o.from));
+    if (row) row.push(s);
+    else rows.push([s]);
+  }
+  return rows;
+};
+const lanes = [
+  { key: 'study', label: 'Study', rows: rowsOf('study') },
+  { key: 'work', label: 'Work', rows: rowsOf('work') },
+] as const;
+// Chapters may carry inline [text](url) links; split them into text and link parts.
+const parts = (story: string) =>
+  story.split(/(\[[^\]]+\]\([^)]+\))/).map((p) => {
+    const m = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    return m ? { text: m[1], url: m[2] } : { text: p };
+  });
+const ticks: number[] = [];
+for (let y = Math.ceil(start / 2) * 2; y <= end; y += 2) ticks.push(y);
+---
+
+<div class="map" data-map>
+  <div class="map__board">
+    {lanes.map((lane) => lane.rows.map((row, r) => (
+      <div class:list={['map__lane', { 'map__lane--sub': r > 0 }]}>
+        <p class="map__lane-label">{r === 0 ? lane.label : ''}</p>
+        <div class="map__track">
+          {row.map((s) => (
+            <button
+              type="button"
+              class:list={['seg', `seg--${s.tone}`, { 'seg--narrow': s.width < 7 }]}
+              style={`left:${s.left}%;--w:${s.width}%`}
+              aria-label={`${s.title}, ${s.when}`}
+              aria-expanded="false"
+              aria-controls={`stage-card-${Number(s.n)}`}
+              data-card={`stage-card-${Number(s.n)}`}
+            >
+              <span class="seg__n num" aria-hidden="true">{s.n}</span>
+              <span class="seg__name" aria-hidden="true">{s.short}</span>
+              {s.tone === 'now' && <span class="seg__now" aria-hidden="true"></span>}
+            </button>
+          ))}
+          {r > 0 && row.filter((s) => s.width < 7).map((s) => (
+            <span class="seg__aside" style={`left:calc(${s.left + s.width}% + 0.5rem)`} aria-hidden="true">{s.short}</span>
+          ))}
+        </div>
+      </div>
+    )))}
+    <div class="map__lane map__ticks" aria-hidden="true">
+      <span></span>
+      <div class="map__track">
+        {ticks.map((y) => (
+          <span class="tick num" style={`left:${pct(y)}%`}>{String(y).slice(2).padStart(3, "'")}</span>
+        ))}
+      </div>
+    </div>
+    <p class="map__hint" aria-hidden="true">Hover or tap a stage</p>
+  </div>
+  <div class="map__cards" data-cards>
+    {segs.map((s) => (
+      <article class:list={['card', `card--${s.tone}`]} id={`stage-card-${Number(s.n)}`}>
+        <p class="card__meta label num">Level {s.n} · {s.when}</p>
+        <h3>{s.title}</h3>
+        <p class="card__role muted">{s.role}</p>
+        <p class="card__story">
+          {parts(s.story).map((p) =>
+            'url' in p ? (
+              <a href={p.url} target="_blank" rel="noopener">{p.text}</a>
+            ) : (
+              p.text
+            ),
+          )}
+        </p>
+      </article>
+    ))}
+  </div>
+</div>
+
+<script>
+  for (const map of document.querySelectorAll<HTMLElement>('[data-map]')) {
+    const segs = [...map.querySelectorAll<HTMLButtonElement>('[data-card]')];
+    const cards = [...map.querySelectorAll<HTMLElement>('.card')];
+    let open: HTMLButtonElement | null = null;
+    let pinned = false; // opened by a tap or click, so it stays until dismissed
+
+    const place = (seg: HTMLButtonElement, card: HTMLElement) => {
+      const b = map.getBoundingClientRect();
+      const s = seg.getBoundingClientRect();
+      const w = card.offsetWidth;
+      const left = Math.max(0, Math.min(b.width - w, s.left - b.left + s.width / 2 - w / 2));
+      card.style.left = `${left}px`;
+      card.style.top = `${s.bottom - b.top + 10}px`;
+      // The pointer nub sits under the segment's centre, wherever the card had to shift to.
+      card.style.setProperty('--nub', `${Math.max(12, Math.min(w - 12, s.left - b.left + s.width / 2 - left))}px`);
+    };
+    const show = (seg: HTMLButtonElement) => {
+      if (open && open !== seg) hide();
+      const card = map.querySelector<HTMLElement>(`#${seg.dataset.card}`)!;
+      card.hidden = false;
+      place(seg, card);
+      seg.setAttribute('aria-expanded', 'true');
+      open = seg;
+    };
+    function hide() {
+      if (!open) return;
+      map.querySelector<HTMLElement>(`#${open.dataset.card}`)!.hidden = true;
+      open.setAttribute('aria-expanded', 'false');
+      open = null;
+      pinned = false;
+    }
+
+    cards.forEach((c) => (c.hidden = true));
+    map.dataset.ready = '';
+
+    for (const seg of segs) {
+      seg.addEventListener('pointerenter', (e) => {
+        if (e.pointerType === 'mouse' && !pinned) show(seg);
+      });
+      seg.addEventListener('pointerleave', (e) => {
+        if (e.pointerType === 'mouse' && !pinned) hide();
+      });
+      seg.addEventListener('focus', () => {
+        if (!pinned) show(seg);
+      });
+      seg.addEventListener('blur', () => {
+        if (!pinned) hide();
+      });
+      seg.addEventListener('click', () => {
+        if (open === seg && pinned) return hide();
+        show(seg);
+        pinned = true;
+      });
+    }
+    document.addEventListener('pointerdown', (e) => {
+      if (pinned && !map.contains(e.target as Node)) hide();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && open) {
+        const seg = open;
+        hide();
+        seg.focus();
+      }
+    });
+    window.addEventListener('resize', () => {
+      if (open) place(open, map.querySelector<HTMLElement>(`#${open.dataset.card}`)!);
+    });
+  }
+</script>
+
+<style>
+  .map {
+    --px: 2px;
+    position: relative;
+  }
+  .map__board {
+    position: relative;
+    container-type: inline-size;
+    display: grid;
+    gap: 0.5rem;
+    padding: 1rem 1rem 0.75rem;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+  }
+  .map__lane {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+  }
+  /* A row for overlapping stages sits tight under its lane. */
+  .map__lane--sub {
+    margin-top: -0.3rem;
+  }
+  .map__lane-label,
+  .map__hint {
+    margin: 0;
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    color: var(--ink-2);
+  }
+  .map__hint {
+    text-align: right;
+  }
+  .map:not([data-ready]) .map__hint {
+    display: none;
+  }
+  .map__track {
+    position: relative;
+    height: 1.75rem;
+    /* A dotted path under the segments, like a route on a game map. */
+    background: repeating-linear-gradient(to right, var(--line) 0 var(--px), transparent var(--px) calc(var(--px) * 4)) center / 100% var(--px) no-repeat;
+  }
+  .seg {
+    position: absolute;
+    top: var(--px);
+    bottom: var(--px);
+    /* Segments touch end to end; leave a sliver of daylight between them. */
+    width: calc(var(--w) - var(--px) * 3);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    overflow: hidden;
+    margin: 0 0 0 calc(var(--px) * 1.5);
+    padding: 0 0.4rem;
+    border: 0;
+    border-radius: 0;
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    /* Notched pixel corners. */
+    box-shadow:
+      0 calc(var(--px) * -1) 0 var(--seg),
+      0 var(--px) 0 var(--seg),
+      calc(var(--px) * -1) 0 0 var(--seg),
+      var(--px) 0 0 var(--seg);
+    background: var(--seg);
+    color: var(--seg-ink);
+    transition: filter 150ms ease;
+  }
+  .seg:hover,
+  .seg:focus-visible,
+  .seg[aria-expanded='true'] {
+    filter: brightness(1.3);
+  }
+  .seg:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+  .seg--study,
+  .card--study {
+    --seg: var(--line);
+    --seg-ink: var(--ink);
+  }
+  .seg--past,
+  .card--past {
+    --seg: var(--accent-dim);
+    --seg-ink: var(--ink);
+  }
+  .seg--riot,
+  .card--riot {
+    --seg: var(--accent);
+    --seg-ink: var(--paper);
+  }
+  .seg--now,
+  .card--now {
+    --seg: var(--signal);
+    --seg-ink: var(--paper);
+  }
+  .seg__n {
+    opacity: 0.7;
+  }
+  .seg--narrow .seg__name {
+    display: none;
+  }
+  /* Narrow maps (phones): stage numbers only; the cards spell them out. */
+  @container (max-width: 34rem) {
+    .seg__name {
+      display: none;
+    }
+    .seg__n {
+      opacity: 1;
+    }
+  }
+  /* On an overflow row there is room beside a short segment for its name. */
+  .seg__aside {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    color: var(--ink-2);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .seg__now {
+    margin-left: auto;
+    width: calc(var(--px) * 2);
+    height: calc(var(--px) * 2);
+    flex: none;
+    background: var(--paper);
+    animation: now-blink 1s steps(2, jump-none) infinite;
+  }
+  @keyframes now-blink {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* On an overflow row there is room beside a short segment for its name. */
+  .seg__aside {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    color: var(--ink-2);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .seg__now {
+      animation: none;
+    }
+  }
+  .map__ticks .map__track {
+    height: 1rem;
+    background: none;
+  }
+  .tick {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    font-family: var(--font-pixel);
+    font-size: 0.55rem;
+    color: var(--ink-2);
+  }
+
+  /* Cards. Without JS they are a list under the map; with JS each floats under its segment. */
+  .map__cards {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .map[data-ready] .map__cards {
+    margin: 0;
+  }
+  .card {
+    max-width: var(--measure);
+    padding: 1rem 1.1rem 1.1rem;
+    background: var(--paper);
+    border-top: calc(var(--px) * 2) solid var(--seg);
+    box-shadow:
+      0 var(--px) 0 var(--line),
+      calc(var(--px) * -1) 0 0 var(--line),
+      var(--px) 0 0 var(--line);
+  }
+  .map[data-ready] .card {
+    position: absolute;
+    z-index: 5;
+    width: min(24rem, 100%);
+    max-width: none;
+  }
+  /* Pixel nub pointing up at the segment. */
+  .map[data-ready] .card::before {
+    content: '';
+    position: absolute;
+    top: calc(var(--px) * -6);
+    left: calc(var(--nub, 50%) - var(--px) * 4);
+    width: calc(var(--px) * 8);
+    height: calc(var(--px) * 4);
+    background: var(--seg);
+    clip-path: polygon(37.5% 0, 62.5% 0, 62.5% 50%, 87.5% 50%, 87.5% 100%, 12.5% 100%, 12.5% 50%, 37.5% 50%);
+  }
+  .card[hidden] {
+    display: none;
+  }
+  .card p {
+    margin: 0;
+  }
+  .card h3 {
+    margin: 0.35rem 0 0;
+    font-size: 1.1rem;
+  }
+  .card__role {
+    margin-top: 0.15rem !important;
+    font-size: 0.9rem;
+  }
+  .card__story {
+    margin-top: 0.6rem !important;
+    font-size: 0.95rem;
+    text-wrap: pretty;
+  }
+</style>

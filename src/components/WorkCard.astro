@@ -1,0 +1,45 @@
+---
+import type { Work } from '../data/work';
+
+interface Props {
+  item: Work;
+}
+const { title, text, link } = Astro.props.item;
+---
+
+<li class="card">
+  <h3>{title}</h3>
+  <p class="muted">{text}</p>
+  {link && (
+    <p class="card__link">
+      <a href={link.url} target="_blank" rel="noopener">{link.label} ↗</a>
+    </p>
+  )}
+</li>
+
+<style>
+  .card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.4rem 0 0;
+    border-top: 1px solid var(--line);
+    transition: border-color 150ms ease;
+  }
+  .card:hover,
+  .card:focus-within {
+    border-top-color: var(--accent);
+  }
+  h3 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+  p {
+    margin: 0.6rem 0 0;
+    text-wrap: pretty;
+  }
+  .card__link {
+    margin-top: auto;
+    padding-top: 1rem;
+    font-size: 0.9rem;
+  }
+</style>

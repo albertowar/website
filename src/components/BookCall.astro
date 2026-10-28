@@ -1,0 +1,121 @@
+---
+import { consulting } from '../data/consulting';
+import { site } from '../data/site';
+import PixelIcon from './PixelIcon.astro';
+
+// One plain link per Cal.com event type (or email when there are none). With JS, the first
+// click loads Cal.com's embed and opens booking as a popup over the page instead; nothing from
+// Cal.com loads before that click.
+const email = site.socials.find((s) => s.url.startsWith('mailto:'))!.url;
+const fallback = `${email}?subject=Consulting`;
+---
+
+<div class="book">
+  {consulting.events.length > 0 ? (
+    consulting.events.map((ev) => (
+      <a class="book__btn" href={`https://cal.com/${ev.calLink}`} target="_blank" rel="noopener" data-cal-link={ev.calLink}>
+        <PixelIcon name="consulting" size={14} />
+        Book {ev.label}
+      </a>
+    ))
+  ) : (
+    <a class="book__btn" href={fallback}>
+      <PixelIcon name="consulting" size={14} />
+      Get in touch
+    </a>
+  )}
+</div>
+
+<script>
+  type CalFn = ((...args: unknown[]) => void) & { loaded?: boolean; ns?: object; q?: unknown[] };
+  const EMBED = 'https://app.cal.com/embed/embed.js';
+
+  // Cal.com's loader, as published in @calcom/embed-snippet: it queues calls until embed.js runs.
+  function loadCal(): CalFn {
+    const w = window as unknown as { Cal?: CalFn };
+    (function (s: typeof w, src: string, initCmd: string) {
+      const push = (n: CalFn, a: unknown) => n.q!.push(a);
+      const d = document;
+      s.Cal =
+        s.Cal ||
+        (function (this: unknown, ...args: unknown[]) {
+          const cal = s.Cal!;
+          if (!cal.loaded) {
+            cal.ns = {};
+            cal.q = cal.q || [];
+            const script = d.head.appendChild(d.createElement('script'));
+            script.src = src;
+            script.addEventListener('error', () => document.dispatchEvent(new Event('cal:error')));
+            cal.loaded = true;
+          }
+          if (args[0] === initCmd) {
+            const api = function (...a: unknown[]) {
+              push(api as CalFn, a);
+            } as CalFn;
+            const ns = args[1];
+            api.q = api.q || [];
+            if (typeof ns === 'string') {
+              const spaces = cal.ns as Record<string, CalFn>;
+              spaces[ns] = spaces[ns] || api;
+              push(spaces[ns], args);
+              push(cal, ['initNamespace', ns]);
+            } else push(cal, args);
+            return;
+          }
+          push(cal, args);
+        } as CalFn);
+    })(w, EMBED, 'init');
+    return w.Cal!;
+  }
+
+  let cal: CalFn | null = null;
+  let lastHref = '';
+  for (const btn of document.querySelectorAll<HTMLAnchorElement>('a[data-cal-link]')) {
+    btn.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let "open in new tab" work
+      e.preventDefault();
+      lastHref = btn.href;
+      if (!cal) {
+        cal = loadCal();
+        cal('init', { origin: 'https://cal.com' });
+        cal('ui', { theme: 'dark', styles: { branding: { brandColor: '#5ee6ff' } } });
+        // If Cal.com cannot be reached, fall back to its booking page.
+        document.addEventListener('cal:error', () => (location.href = lastHref), { once: true });
+      }
+      cal('modal', { calLink: btn.dataset.calLink });
+    });
+  }
+</script>
+
+<style>
+  .book {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem 1.25rem;
+    margin-top: 2rem;
+  }
+  /* The hero's Replay button, a size up: pixel font, cyan edge, cyan fill on hover. */
+  .book__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.8rem 1.15rem;
+    font-family: var(--font-pixel);
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    transition:
+      background 150ms ease,
+      color 150ms ease;
+  }
+  .book__btn:hover,
+  .book__btn:focus-visible {
+    background: var(--accent);
+    color: var(--paper);
+  }
+</style>
