@@ -71,9 +71,10 @@ const quotes: readonly { text: string; by?: string }[] = site.quotes;
       </figure>
     )}
     <figure class="quote" data-quotes={JSON.stringify(quotes)}>
-      <p class="label">Quote</p>
-      <blockquote>{quotes[0].text}</blockquote>
-      <figcaption class="muted" hidden={!quotes[0].by}>{quotes[0].by}</figcaption>
+      <div class="quote__body">
+        <blockquote>{quotes[0].text}</blockquote>
+        <figcaption class="muted" hidden={!quotes[0].by}>{quotes[0].by}</figcaption>
+      </div>
     </figure>
   </div>
 </section>
@@ -209,19 +210,32 @@ const quotes: readonly { text: string; by?: string }[] = site.quotes;
   .hero__socials svg {
     display: block;
   }
+  /* The quote sits on the separator: a hairline runs out from both sides of the centred text. */
   .quote {
     grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
     margin: 0.5rem 0 0;
-    padding-top: 1.25rem;
-    border-top: 1px solid var(--line);
     align-self: stretch;
   }
+  .quote::before,
+  .quote::after {
+    content: '';
+    flex: 1 1 2rem;
+    min-width: 1.5rem;
+    height: 1px;
+    background: var(--line);
+  }
+  .quote__body {
+    flex: 0 1 52ch;
+    text-align: center;
+  }
   .quote blockquote {
-    max-width: 52ch;
-    margin: 0.5rem 0 0;
+    margin: 0;
     font-style: italic;
     font-size: 1.05rem;
-    text-wrap: pretty;
+    text-wrap: balance;
   }
   .quote figcaption {
     margin-top: 0.35rem;
