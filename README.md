@@ -25,10 +25,10 @@ status mark), hairline rules, one typeface (Literata) and a lot of empty space.
 The videogame thread is the brand mark (Alberto's pixel-art avatar, a head crop of the GitHub
 profile image, served as `public/favicon.svg` and reused as the nav logo), an RPG-style cursor in the nav, "stages" for the
 career, and **Login Queue**, a small arcade shooter (`src/scripts/login-queue.ts`) that gates
-everything below the landing screen: fire captchas at descending bots, do not hit the players, and
+the whole page, landing hero included: fire captchas at descending robot bots, do not hit the gamers, and
 from wave 2 watch for bots disguised as players whose cover drops as they get close. While it is unfinished the nav reads as compromised (blurred,
 glitched links and a "Bots detected" status). Without JavaScript the gated content is simply visible;
-winning or skipping the game stores `aq-bonus` in `localStorage`, and "Replay Login Queue" at the
+winning, or admitting defeat, stores `aq-bonus` in `localStorage`, and "Replay Login Queue" at the
 end of the page locks it again.
 
 The site is dark-only by design. Colour tokens live at the top of `src/styles/global.css`.

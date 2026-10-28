@@ -246,11 +246,19 @@ html[data-locked] .gate {
   display: block;
 }
 
+/* While locked the gate is the landing screen: fill the viewport and centre the cabinet. */
+html[data-locked] .gate .section {
+  min-height: calc(100svh - var(--bar));
+  display: grid;
+  align-content: center;
+}
+
 html[data-locked] .bonus-content {
   display: none;
 }
 
 /* The first gated heading receives focus when the gate opens; it needs no ring. */
+h1[tabindex='-1']:focus,
 h2[tabindex='-1']:focus {
   outline: none;
 }

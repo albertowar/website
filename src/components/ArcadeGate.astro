@@ -149,7 +149,7 @@ const place = (r: { x: number; y: number; w: number; h: number }) =>
             height="160"
             tabindex="0"
             role="img"
-            aria-label="Login Queue, a small arcade shooter. Bots and players descend toward the login line. Fire captchas at the bots and do not hit the players. To start, drag the coin into the slot at the bottom of the cabinet, or press Enter on the coin. Move with the arrow keys or A and D, fire with Space, or use the buttons on the control panel."
+            aria-label="Login Queue, a small arcade shooter. Bots and players descend toward the login line. Fire captchas at the bots and do not hit the players. To start, drag the coin into the slot at the bottom of the cabinet, or press Enter on the coin. Move with the arrow keys, A and D, or the mouse; fire with Space or a click, or use the buttons on the control panel."
           ></canvas>
         </div>
         <div class="cab__panel gate__controls" style={place(PANEL)}>
@@ -167,8 +167,9 @@ const place = (r: { x: number; y: number; w: number; h: number }) =>
           </svg>
         </button>
       </div>
-      <p class="gate__skip">
-        <button type="button" class="linkish" data-skip>Skip the game</button>
+      <p class="surrender">
+        <button type="button" class="surrender__btn" data-skip>Admit defeat</button>
+        <span class="surrender__sub">Let the bots in. The site unlocks. Your record does not.</span>
       </p>
     </div>
   </Section>
@@ -195,7 +196,7 @@ const place = (r: { x: number; y: number; w: number; h: number }) =>
         /* private mode: unlock for this page view only */
       }
       document.documentElement.removeAttribute('data-locked');
-      const first = bonus.querySelector<HTMLElement>('h2');
+      const first = bonus.querySelector<HTMLElement>('h1, h2');
       if (first) {
         first.tabIndex = -1;
         first.focus();
@@ -220,7 +221,18 @@ const place = (r: { x: number; y: number; w: number; h: number }) =>
       game.start();
       game.focus();
     });
-    root.querySelector('[data-skip]')?.addEventListener('click', unlock);
+    // Admitting defeat plays the surrender screen on the cabinet, then opens the gate.
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let surrendering = false;
+    root.querySelector('[data-skip]')?.addEventListener('click', () => {
+      if (surrendering) return;
+      surrendering = true;
+      game.surrender();
+      window.setTimeout(() => {
+        unlock();
+        surrendering = false;
+      }, reduced ? 0 : 1500);
+    });
     bonus.querySelector('[data-replay]')?.addEventListener('click', lock);
 
     // While locked, any in-page link to gated content leads to the game instead.
@@ -246,7 +258,7 @@ const place = (r: { x: number; y: number; w: number; h: number }) =>
     gap: 1.25rem;
   }
   @media (prefers-reduced-motion: reduce) {
-    .gate__skip {
+    .surrender {
       order: -1;
     }
   }
@@ -303,7 +315,9 @@ const place = (r: { x: number; y: number; w: number; h: number }) =>
     outline: 1px solid var(--accent);
   }
   [data-state='playing'] .cab__coin,
-  [data-state='playing'] .cab__hint {
+  [data-state='playing'] .cab__hint,
+  [data-state='surrendered'] .cab__coin,
+  [data-state='surrendered'] .cab__hint {
     display: none;
   }
   .cab__hint {
@@ -362,22 +376,49 @@ const place = (r: { x: number; y: number; w: number; h: number }) =>
     background: var(--accent);
     color: var(--paper);
   }
-  .gate__skip {
+  /* The way out for those who will not play: loud, magenta, and a little ashamed. */
+  .surrender {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 1rem;
     margin: 0;
-    font-size: 0.9rem;
+    max-width: 32rem;
   }
-  .linkish {
-    background: none;
-    border: 0;
-    padding: 0;
+  .surrender__btn {
+    font-family: var(--font-pixel);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: transparent;
+    border: 1px solid var(--signal);
+    color: var(--signal);
+    padding: 0.6rem 0.9rem;
+    border-radius: 0;
     cursor: pointer;
-    color: var(--ink-2);
-    text-decoration: underline;
-    text-decoration-color: var(--accent-dim);
-    text-underline-offset: 0.2em;
   }
-  .linkish:hover {
-    color: var(--accent);
-    text-decoration-color: var(--accent);
+  .surrender__btn:hover,
+  .surrender__btn:focus-visible {
+    background: var(--signal);
+    color: var(--paper);
+    animation: surrender-glitch 240ms steps(2) infinite;
+  }
+  .surrender__sub {
+    font-size: 0.85rem;
+    color: var(--ink-2);
+  }
+  @keyframes surrender-glitch {
+    0% {
+      text-shadow: 2px 0 var(--accent), -2px 0 var(--paper);
+    }
+    100% {
+      text-shadow: -2px 0 var(--accent), 2px 0 var(--paper);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .surrender__btn:hover,
+    .surrender__btn:focus-visible {
+      animation: none;
+    }
   }
 </style>

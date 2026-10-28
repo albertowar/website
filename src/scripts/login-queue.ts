@@ -6,7 +6,9 @@
  */
 
 type Kind = 'human' | 'bot';
-type State = 'title' | 'playing' | 'won' | 'lost';
+/** Which gamer sprite an entity wears; disguised bots wear one too. */
+type Look = 'boy' | 'girl';
+type State = 'title' | 'playing' | 'won' | 'lost' | 'surrendered';
 
 interface Ent {
   /** Centre x and top y in logical pixels. */
@@ -15,6 +17,7 @@ interface Ent {
   baseX: number;
   sway: number;
   kind: Kind;
+  look: Look;
   /** A bot still drawn as a player. */
   disguised: boolean;
   revealAt: number;
@@ -58,6 +61,8 @@ export interface LoginQueue {
   reset(): void;
   /** Start a run. The cabinet calls this once a coin is inserted. */
   start(): void;
+  /** Give up: show the surrender screen. The cabinet opens the gate afterwards. */
+  surrender(): void;
   focus(): void;
 }
 
@@ -71,6 +76,8 @@ const BULLET_SPEED = 300;
 const MAX_ATO = 3;
 const MAX_FP = 3;
 const SCALE = 2;
+/** Sprites are 8 columns by 10 rows. */
+const SPR_H = 10 * SCALE;
 const BANNER_T = 1.4;
 
 const WAVES: Wave[] = [
@@ -79,8 +86,44 @@ const WAVES: Wave[] = [
   { spawns: 14, gap: 1.0, speed: 50, botRate: 0.6, disguise: 0.5, revealY: 66, maxOn: 3, banner: 'WATCH FOR THE TELL' },
 ];
 
-const HUMAN = ['..####..', '.######.', '.######.', '..####..', '.######.', '########', '########', '.##..##.'];
-const BOT = ['...#....', '.######.', '.#.##.#.', '.######.', '.######.', '#.####.#', '#.####.#', '.##..##.'];
+// Sprite maps: '.' is transparent, every other character is a palette key (see sprites()).
+// Gamers: h hair, H headset, f face, e eyes, # shirt and legs. Robot: # body, e eyes, l chest light.
+const GAMER_BOY = [
+  '..hhhh..',
+  'HhhhhhhH',
+  'HffffffH',
+  'HfeffefH',
+  '.ffffff.',
+  '..####..',
+  '.######.',
+  '#.####.#',
+  '..#..#..',
+  '.##..##.',
+];
+const GAMER_GIRL = [
+  '..hhhh..',
+  'HhhhhhhH',
+  'HhffffhH',
+  'hfeffefh',
+  'hffffffh',
+  'h.####.h',
+  '.######.',
+  '#.####.#',
+  '..#..#..',
+  '.##..##.',
+];
+const ROBOT = [
+  '...#....',
+  '.######.',
+  '.#e##e#.',
+  '.######.',
+  '..####..',
+  '#.####.#',
+  '#.#ll#.#',
+  '#.####.#',
+  '..#..#..',
+  '.##..##.',
+];
 const SHIP = [
   '.......##.......',
   '......####......',
@@ -118,7 +161,7 @@ function readPixelFont(el: HTMLElement): string {
 export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueue {
   const canvas = root.querySelector('canvas');
   const ctx = canvas?.getContext('2d');
-  if (!canvas || !ctx) return { reset() {}, focus() {}, start() {} };
+  if (!canvas || !ctx) return { reset() {}, focus() {}, start() {}, surrender() {} };
   const c = ctx;
 
   canvas.width = W;
@@ -148,6 +191,8 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
   let inView = true;
   const heldKeys = new Set<number>();
   const heldButtons = new Set<number>();
+  /** Logical x the mouse is pointing at, while it is over the screen. */
+  let pointerX: number | null = null;
 
   function fresh(): Stats {
     return { blocked: 0, ato: 0, fp: 0, passed: 0 };
@@ -185,6 +230,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     loseReason = '';
     heldKeys.clear();
     heldButtons.clear();
+    pointerX = null;
     setState('playing');
     last = 0;
     loop();
@@ -197,6 +243,16 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     ents = [];
     stats = fresh();
     bullet = null;
+    draw();
+  }
+
+  function surrender() {
+    window.clearTimeout(winTimer);
+    cancelAnimationFrame(raf);
+    heldKeys.clear();
+    heldButtons.clear();
+    bullet = null;
+    setState('surrendered');
     draw();
   }
 
@@ -224,10 +280,11 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     const baseX = 16 + Math.random() * (W - 32);
     ents.push({
       x: baseX,
-      y: -16,
+      y: -SPR_H,
       baseX,
       sway: Math.random() * Math.PI * 2,
       kind,
+      look: Math.random() < 0.5 ? 'boy' : 'girl',
       disguised,
       revealAt: disguised ? w.revealY : Infinity,
       ring: 0,
@@ -259,7 +316,14 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     if (flash > 0) flash -= dt;
     const w = WAVES[wi];
 
-    ship = Math.max(8, Math.min(W - 8, ship + moveDir() * SHIP_SPEED * dt));
+    const dir = moveDir();
+    if (dir !== 0) {
+      pointerX = null; // keys take over from the mouse until it moves again
+      ship += dir * SHIP_SPEED * dt;
+    } else if (pointerX !== null) {
+      ship = pointerX;
+    }
+    ship = Math.max(8, Math.min(W - 8, ship));
 
     if (bullet) {
       bullet.y -= BULLET_SPEED * dt;
@@ -293,13 +357,13 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
       }
       if (e.ring > 0) e.ring -= dt;
 
-      if (bullet && bullet.x >= e.x - 8 && bullet.x <= e.x + 8 && bullet.y <= e.y + 16 && bullet.y + 4 >= e.y) {
+      if (bullet && bullet.x >= e.x - 8 && bullet.x <= e.x + 8 && bullet.y <= e.y + SPR_H && bullet.y + 4 >= e.y) {
         bullet = null;
         hit(e);
         continue;
       }
 
-      if (e.y + 16 >= LINE_Y) {
+      if (e.y + SPR_H >= LINE_Y) {
         if (e.kind === 'bot') {
           stats.ato++;
           flash = 0.25;
@@ -348,18 +412,28 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
   function center(s: string, y: number, color = colors.ink) {
     text(s, (W - c.measureText(s).width) / 2, y, color);
   }
-  function blit(map: string[], x: number, y: number, scale: number, color: string) {
-    c.fillStyle = color;
+  function blit(map: string[], x: number, y: number, scale: number, palette: Record<string, string>) {
     for (let py = 0; py < map.length; py++) {
       const row = map[py];
       for (let px = 0; px < row.length; px++) {
-        if (row[px] === '#') c.fillRect(Math.round(x + px * scale), Math.round(y + py * scale), scale, scale);
+        const color = palette[row[px]];
+        if (!color) continue;
+        c.fillStyle = color;
+        c.fillRect(Math.round(x + px * scale), Math.round(y + py * scale), scale, scale);
       }
     }
   }
+  function sprites() {
+    return {
+      gamer: { '#': colors.accent, h: colors.ink2, H: colors.accent, f: colors.ink, e: colors.paper },
+      robot: { '#': colors.signal, e: colors.ink, l: colors.ink },
+    };
+  }
+  const gamerMap = (look: Look) => (look === 'girl' ? GAMER_GIRL : GAMER_BOY);
 
   function drawEnt(e: Ent) {
     const left = e.x - 8;
+    const pal = sprites();
     if (e.dead > 0) {
       if (e.deathKind === 'burst') {
         if (reduced) return;
@@ -368,24 +442,26 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
         c.fillStyle = colors.signal;
         for (let i = 0; i < 6; i++) {
           const a = (i / 6) * Math.PI * 2;
-          c.fillRect(Math.round(e.x + Math.cos(a) * r) - 1, Math.round(e.y + 8 + Math.sin(a) * r) - 1, 2, 2);
+          c.fillRect(Math.round(e.x + Math.cos(a) * r) - 1, Math.round(e.y + SPR_H / 2 + Math.sin(a) * r) - 1, 2, 2);
         }
       } else {
         c.globalAlpha = Math.max(0, e.dead / 0.5);
-        blit(HUMAN, left, e.y, SCALE, colors.accent);
+        blit(gamerMap(e.look), left, e.y, SCALE, pal.gamer);
         c.globalAlpha = 1;
         text('!', e.x - 2, e.y - 10, colors.signal);
       }
       return;
     }
     const asBot = e.kind === 'bot' && !e.disguised;
-    blit(asBot ? BOT : HUMAN, left, e.y, SCALE, asBot ? colors.signal : colors.accent);
+    if (asBot) blit(ROBOT, left, e.y, SCALE, pal.robot);
+    else blit(gamerMap(e.look), left, e.y, SCALE, pal.gamer);
     if (e.ring > 0) {
+      const rh = SPR_H + 4;
       c.fillStyle = colors.ink;
       c.fillRect(Math.round(left) - 2, Math.round(e.y) - 2, 20, 1);
-      c.fillRect(Math.round(left) - 2, Math.round(e.y) + 17, 20, 1);
-      c.fillRect(Math.round(left) - 2, Math.round(e.y) - 2, 1, 20);
-      c.fillRect(Math.round(left) + 17, Math.round(e.y) - 2, 1, 20);
+      c.fillRect(Math.round(left) - 2, Math.round(e.y) + rh - 3, 20, 1);
+      c.fillRect(Math.round(left) - 2, Math.round(e.y) - 2, 1, rh);
+      c.fillRect(Math.round(left) + 17, Math.round(e.y) - 2, 1, rh);
     }
   }
 
@@ -406,7 +482,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
 
     for (const e of ents) drawEnt(e);
 
-    blit(SHIP, ship - 8, SHIP_Y, 1, colors.accent);
+    blit(SHIP, ship - 8, SHIP_Y, 1, { '#': colors.accent });
     if (bullet) {
       c.fillStyle = colors.accent;
       c.fillRect(bullet.x - 1, Math.round(bullet.y), 2, 4);
@@ -440,7 +516,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
       return;
     }
 
-    // Overlay card for title, win and lose.
+    // Overlay card for title, win, lose and surrender.
     c.fillStyle = colors.paper;
     c.fillRect(20, 40, W - 40, 80);
     c.fillStyle = colors.accent;
@@ -461,6 +537,11 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
       center(`${stats.blocked} BOTS BLOCKED`, 78);
       center(`${stats.fp} PLAYERS HIT`, 88, colors.ink2);
       center('WELCOME BACK', 104, colors.accent);
+    } else if (state === 'surrendered') {
+      center('WHITE FLAG RAISED', 50, colors.signal);
+      center('THE BOTS ARE IN', 66);
+      center('AUTH SUCCESS 0.0%', 80, colors.ink2);
+      center('ACCESS GRANTED TO EVERYONE', 100, colors.accent);
     } else {
       if (loseReason === 'fp') {
         center('3 PLAYERS BLOCKED', 54, colors.signal);
@@ -499,6 +580,17 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
 
   canvas.addEventListener('pointerdown', () => {
     if (state === 'playing') fire();
+  });
+  // Mouse: the ship follows the cursor across the screen; click fires. Mouse only, so a finger on
+  // the canvas still scrolls the page (the pad below is the touch control).
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'mouse' || state !== 'playing') return;
+    const r = canvas.getBoundingClientRect();
+    if (r.width === 0) return;
+    pointerX = ((e.clientX - r.left) / r.width) * W;
+  });
+  canvas.addEventListener('pointerleave', () => {
+    pointerX = null;
   });
 
   // Touch pad: hold to move, tap to fire.
@@ -557,7 +649,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
         bullet: !!bullet,
         ents: ents
           .filter((e) => e.dead <= 0)
-          .map((e) => ({ x: e.x, y: e.y, kind: e.kind, revealed: e.kind === 'human' || !e.disguised })),
+          .map((e) => ({ x: e.x, y: e.y, kind: e.kind, look: e.look, revealed: e.kind === 'human' || !e.disguised })),
       }),
     };
   }
@@ -569,6 +661,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
   return {
     reset,
     start,
+    surrender,
     focus: () => canvas.focus(),
   };
 }

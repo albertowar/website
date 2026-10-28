@@ -51,9 +51,9 @@ const jsonLd = {
 
 <Base path="/" gate>
   <JsonLd slot="head" data={jsonLd} />
-  <Hero />
-
   <ArcadeGate>
+    <Hero />
+
     <Section id="story" label="Story" count={count(stages.length)}>
       <Story stages={stages} />
     </Section>
