@@ -12,6 +12,9 @@ npm run preview  # serve dist/ locally
 npx astro check  # type-check components and content frontmatter
 ```
 
+Or `make help` for the same tasks as Make targets (`make dev` starts the server in the background,
+`make stop` stops it).
+
 Node 24 (see `.nvmrc`). Netlify builds with `npm run build` and publishes `dist/` (see `netlify.toml`).
 
 ## Design
@@ -45,6 +48,22 @@ Everything the site shows comes from markdown or two data files. Components neve
 | Frontmatter schemas                              | `src/content.config.ts`         |
 
 Lines marked `TODO(alberto)` in the data files are figures and dates that still need filling in.
+
+## SEO and sharing
+
+Everything is generated from the same data as the pages, so there is nothing to keep in sync by hand.
+
+| What | Where |
+| --- | --- |
+| Title, meta description, canonical, Open Graph and Twitter tags | `src/layouts/Base.astro` (props `title`, `description`, `path`, `type`, `image`, `publishedTime`, `noindex`) |
+| Short meta description (≤155 chars) and long social description | `site.metaDescription` and `site.description` in `src/data/site.ts` |
+| Social cards (1200×630 PNG), one for the home page and one per talk | `src/lib/og.ts` renders them at build time with satori + sharp; routes in `src/pages/og/`; fonts in `src/assets/fonts/` |
+| JSON-LD (Person / ProfilePage / WebSite on the home page, Article on talks) | `src/lib/schema.ts`, emitted through `src/components/JsonLd.astro` |
+| `llms.txt` for AI crawlers | `src/pages/llms.txt.ts` |
+| Sitemap and robots | `@astrojs/sitemap` in `astro.config.mjs`, `public/robots.txt` |
+
+To preview a card, run `npm run build` and open `dist/og/home.png`. After a deploy, paste the URL into
+the LinkedIn Post Inspector to refresh LinkedIn's cache.
 
 ### Add a talk
 

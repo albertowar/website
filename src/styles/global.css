@@ -11,8 +11,12 @@
   --accent-dim: #2a5f6b;
   /* Magenta: the signal colour. Bots in the game, the status mark. */
   --signal: #ff5fa2;
-  --font: 'Literata', Georgia, 'Times New Roman', serif;
-  --font-pixel: 'Silkscreen', ui-monospace, monospace;
+  /* Amber: the coin, and only the coin. */
+  --coin: #ffc857;
+  --coin-dark: #b07a1f;
+  /* Both families are self-hosted; see `fonts` in astro.config.mjs. */
+  --font: var(--font-literata);
+  --font-pixel: var(--font-silkscreen);
   --gutter: 16px;
   --wrap: 1120px;
   --measure: 62ch;

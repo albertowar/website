@@ -23,7 +23,7 @@ const hero = Object.values(heroImages)[0]?.default;
     </div>
     <div class="hero__side">
       {hero && (
-        <Image class="hero__photo" src={hero} alt="" widths={[480, 800]} sizes="(min-width: 960px) 28vw, 100vw" loading="eager" />
+        <Image class="hero__photo" src={hero} alt={site.name} widths={[480, 800]} sizes="(min-width: 960px) 28vw, 100vw" loading="eager" />
       )}
       <dl class="facts">
         {site.facts.map((f) => (

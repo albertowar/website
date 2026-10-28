@@ -3,6 +3,9 @@ import { getCollection, render } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import LinkButton from '../../components/LinkButton.astro';
+import JsonLd from '../../components/JsonLd.astro';
+import { site } from '../../data/site';
+import { personRef } from '../../lib/schema';
 
 export async function getStaticPaths() {
   const talks = await getCollection('talks');
@@ -17,9 +20,37 @@ const { title, event, venue, year, date, summary, slides, video, sourceUrl } = t
 const { Content } = await render(talk);
 const dateLabel = date?.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 const hasLinks = slides || video || sourceUrl;
+
+const origin = Astro.site ?? new URL(`https://${site.domain}`);
+const path = `/talks/${talk.id}/`;
+const image = `/og/talks/${talk.id}.png`;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  '@id': new URL(path, origin).href,
+  mainEntityOfPage: new URL(path, origin).href,
+  headline: title,
+  description: summary,
+  image: new URL(image, origin).href,
+  inLanguage: 'en',
+  author: personRef(origin),
+  about: `Talk given at ${[event, venue].filter(Boolean).join(', ')}, ${year}.`,
+  ...(date && { datePublished: date.toISOString().slice(0, 10) }),
+  ...(sourceUrl && { isBasedOn: sourceUrl }),
+  ...(video && { video }),
+};
 ---
 
-<Base title={title} description={summary} path={`/talks/${talk.id}/`} type="article">
+<Base
+  title={title}
+  description={summary}
+  path={path}
+  type="article"
+  image={image}
+  imageAlt={`${title}, a talk by ${site.name}`}
+  publishedTime={date}
+>
+  <JsonLd slot="head" data={jsonLd} />
   <article class="wrap talk">
     <aside class="talk__side">
       <p class="talk__back"><a href="/#talks">← All talks</a></p>

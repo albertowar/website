@@ -8,8 +8,10 @@ import TalkRow from '../components/TalkRow.astro';
 import PostItem from '../components/PostItem.astro';
 import ArcadeGate from '../components/ArcadeGate.astro';
 import BonusStage from '../components/BonusStage.astro';
+import JsonLd from '../components/JsonLd.astro';
 import { site } from '../data/site';
 import { stages } from '../data/story';
+import { personNode, personId } from '../lib/schema';
 
 const talks = (await getCollection('talks')).sort(
   (a, b) => b.data.year - a.data.year || (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0),
@@ -21,9 +23,34 @@ if (!writing) throw new Error('Missing src/content/pages/writing.md');
 const { Content: WritingContent } = await render(writing);
 
 const count = (n: number) => String(n).padStart(2, '0');
+
+const origin = Astro.site ?? new URL(`https://${site.domain}`);
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'ProfilePage',
+      '@id': new URL('/#profile', origin).href,
+      url: origin.href,
+      name: `${site.name} · ${site.jobTitle}`,
+      description: site.metaDescription,
+      mainEntity: { '@id': personId(origin) },
+    },
+    personNode(origin, new URL('/og/home.png', origin).href),
+    {
+      '@type': 'WebSite',
+      '@id': new URL('/#website', origin).href,
+      url: origin.href,
+      name: site.name,
+      inLanguage: 'en',
+      author: { '@id': personId(origin) },
+    },
+  ],
+};
 ---
 
 <Base path="/" gate>
+  <JsonLd slot="head" data={jsonLd} />
   <Hero />
 
   <ArcadeGate>
@@ -35,21 +62,16 @@ const count = (n: number) => String(n).padStart(2, '0');
       id="talks"
       label="Talks"
       count={count(talks.length)}
-      kicker="Conference and university talks. Each one has its own page with the abstract and follow-up links."
     >
       <ol class="rows">
         {talks.map((talk) => <TalkRow talk={talk} />)}
       </ol>
-      <p class="aside muted">
-        Abstracts and links also live on <a href={site.talksRepo} target="_blank" rel="noopener">GitHub</a>.
-      </p>
     </Section>
 
     <Section
       id="posts"
       label="Posts"
       count={count(posts.length)}
-      kicker="Articles on AI, software engineering and security, published on LinkedIn."
     >
       <ol class="rows">
         {posts.map((post) => <PostItem post={post} />)}
@@ -72,10 +94,6 @@ const count = (n: number) => String(n).padStart(2, '0');
 </Base>
 
 <style>
-  .aside {
-    margin: 1.25rem 0 0;
-    font-size: 0.9rem;
-  }
   .writing {
     font-size: 1.1rem;
   }

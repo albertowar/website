@@ -4,28 +4,168 @@
  * Without JS the slot content is simply visible; see global.css for the locked state.
  */
 import Section from './Section.astro';
+
+/*
+ * The cabinet is pixel art drawn on a 120x140 grid at build time: each cell is one SVG unit and
+ * each letter of the legend is a colour token. The screen and control panel are empty cells that
+ * the canvas and the buttons sit on (see .cab__screen / .cab__panel, positioned in the same units).
+ */
+const CW = 120;
+const CH = 140;
+const SCREEN = { x: 12, y: 24, w: 96, h: 64 }; // 3:2, like the canvas
+const PANEL = { x: 10, y: 95, w: 100, h: 22 };
+const TRAY = { x: 17, y: 121, w: 16, h: 16 }; // where the coin rests; 16 units is ~44px on a 360px phone
+const SLOT = { x: 44, y: 119, w: 32, h: 18 }; // drop target around the coin plate, finger-sized
+const legend: Record<string, string> = {
+  b: 'var(--paper-2)',
+  d: 'var(--paper)',
+  l: 'var(--line)',
+  h: 'var(--ink-2)',
+  c: 'var(--accent)',
+  a: 'var(--accent-dim)',
+  s: 'var(--signal)',
+};
+const grid: string[][] = Array.from({ length: CH }, () => Array<string>(CW).fill('.'));
+const rect = (x: number, y: number, w: number, h: number, k: string) => {
+  for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) grid[yy][xx] = k;
+};
+
+// Body and side pillars.
+rect(0, 0, CW, CH, 'b');
+rect(0, 0, CW, 1, 'l');
+rect(0, 0, 1, CH, 'l');
+rect(CW - 1, 0, 1, CH, 'l');
+rect(7, 0, 1, CH, 'l');
+rect(112, 0, 1, CH, 'l');
+rect(0, CH - 2, CW, 2, 'l');
+// Marquee: dark band with a cyan edge and the title in a 3x5 pixel font at 2x.
+rect(9, 3, 102, 14, 'c');
+rect(10, 4, 100, 12, 'd');
+const font: Record<string, string[]> = {
+  L: ['#..', '#..', '#..', '#..', '###'],
+  O: ['###', '#.#', '#.#', '#.#', '###'],
+  G: ['###', '#..', '#.#', '#.#', '###'],
+  I: ['###', '.#.', '.#.', '.#.', '###'],
+  N: ['##.', '#.#', '#.#', '#.#', '#.#'],
+  Q: ['###', '#.#', '#.#', '###', '..#'],
+  U: ['#.#', '#.#', '#.#', '#.#', '###'],
+  E: ['###', '#..', '##.', '#..', '###'],
+  ' ': ['...', '...', '...', '...', '...'],
+};
+const title = 'LOGIN QUEUE';
+const tx = Math.floor((CW - (title.length * 4 - 1) * 2) / 2);
+[...title].forEach((ch, i) => {
+  font[ch].forEach((row, y) => {
+    [...row].forEach((c, x) => {
+      if (c === '#') rect(tx + (i * 4 + x) * 2, 5 + y * 2, 2, 2, 'c');
+    });
+  });
+});
+// A row of alternating lights under the marquee.
+for (let x = 10, i = 0; x < 110; x += 4, i++) rect(x, 18, 2, 1, i % 2 ? 's' : 'c');
+// Bezel around the screen, with a dark lip.
+rect(8, 20, 104, 72, 'l');
+rect(SCREEN.x - 1, SCREEN.y - 1, SCREEN.w + 2, SCREEN.h + 2, 'd');
+rect(SCREEN.x, SCREEN.y, SCREEN.w, SCREEN.h, '.');
+// Control panel: a lit top edge, then the buttons' area.
+rect(8, 92, 104, 1, 'h');
+rect(8, 93, 104, 1, 'l');
+rect(8, 118, 104, 1, 'l');
+// Base: coin plate with a magenta slot, the coin tray on the left, vents on the right.
+rect(8, 119, 104, 19, 'd');
+rect(52, 123, 16, 10, 'l');
+rect(55, 126, 10, 1, 'b');
+rect(58, 128, 4, 3, 's');
+rect(TRAY.x - 4, TRAY.y - 1, TRAY.w + 8, TRAY.h + 1, 'l');
+rect(TRAY.x - 3, TRAY.y, TRAY.w + 6, TRAY.h, 'd');
+for (let y = 124; y < 134; y += 2) rect(80, y, 24, 1, 'l');
+
+/** Each colour of the legend becomes one path of merged horizontal runs. */
+function toPaths(g: string[][], keys: Record<string, string>) {
+  return Object.keys(keys)
+    .map((k) => {
+      let d = '';
+      g.forEach((row, y) => {
+        let x = 0;
+        while (x < row.length) {
+          if (row[x] !== k) {
+            x++;
+            continue;
+          }
+          let n = 1;
+          while (x + n < row.length && row[x + n] === k) n++;
+          d += `M${x} ${y}h${n}v1h-${n}z`;
+          x += n;
+        }
+      });
+      return { fill: keys[k], d };
+    })
+    .filter((p) => p.d);
+}
+const paths = toPaths(grid, legend);
+
+// The coin: 16x16, amber with a "1" and shading on the lower right.
+const coinLegend: Record<string, string> = {
+  o: 'var(--paper)',
+  g: 'var(--coin)',
+  k: 'var(--coin-dark)',
+  h: 'var(--ink)',
+};
+const coinMap = [
+  '.....oooooo.....',
+  '...ooggggggoo...',
+  '..oghhgggggggo..',
+  '.oghggggggggggo.',
+  '.oggggkkkgggggo.',
+  'ogggggggkkgggggo',
+  'ogggggggkkggggko',
+  'ogggggggkkggggko',
+  'ogggggggkkgggkko',
+  'ogggggggkkgggkko',
+  'ogggggggkkggkkko',
+  '.oggggkkkkggkko.',
+  '.ogggggggkkkkko.',
+  '..oggggkkkkkkko.',
+  '...ookkkkkkoo...',
+  '.....oooooo.....',
+];
+const coinPaths = toPaths(coinMap.map((r) => [...r]), coinLegend);
+const pct = (n: number, of: number) => `${(n / of) * 100}%`;
+const place = (r: { x: number; y: number; w: number; h: number }) =>
+  `left:${pct(r.x, CW)};top:${pct(r.y, CH)};width:${pct(r.w, CW)};height:${pct(r.h, CH)}`;
 ---
 
 <div class="gate" data-gate>
   <Section id="play" label="Insert coin">
     <div class="gate__inner">
-      <div class="gate__frame">
-        <canvas
-          class="gate__canvas"
-          width="240"
-          height="160"
-          tabindex="0"
-          role="img"
-          aria-label="Login Queue, a small arcade shooter. Bots and players descend toward the login line. Fire captchas at the bots and do not hit the players. Move with the arrow keys or A and D, fire with Space, or use the buttons below."
-        ></canvas>
-        <div class="gate__controls">
-          <button type="button" class="gate__btn gate__start" data-start>Start</button>
+      <div class="cab">
+        <svg class="cab__art" viewBox={`0 0 ${CW} ${CH}`} shape-rendering="crispEdges" aria-hidden="true">
+          {paths.map((p) => <path fill={p.fill} d={p.d} />)}
+        </svg>
+        <div class="cab__screen" style={place(SCREEN)}>
+          <canvas
+            class="gate__canvas"
+            width="240"
+            height="160"
+            tabindex="0"
+            role="img"
+            aria-label="Login Queue, a small arcade shooter. Bots and players descend toward the login line. Fire captchas at the bots and do not hit the players. To start, drag the coin into the slot at the bottom of the cabinet, or press Enter on the coin. Move with the arrow keys or A and D, fire with Space, or use the buttons on the control panel."
+          ></canvas>
+        </div>
+        <div class="cab__panel gate__controls" style={place(PANEL)}>
+          <p class="cab__hint">Drag the coin into the slot</p>
           <div class="gate__pad">
             <button type="button" class="gate__btn" data-move="-1" aria-label="Move left">◀</button>
             <button type="button" class="gate__btn" data-fire aria-label="Fire a captcha">Fire</button>
             <button type="button" class="gate__btn" data-move="1" aria-label="Move right">▶</button>
           </div>
         </div>
+        <div class="cab__slot" style={place(SLOT)} data-slot></div>
+        <button type="button" class="cab__coin" style={place(TRAY)} data-coin aria-label="Insert a coin to start Login Queue">
+          <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+            {coinPaths.map((p) => <path fill={p.fill} d={p.d} />)}
+          </svg>
+        </button>
       </div>
       <p class="gate__skip">
         <button type="button" class="linkish" data-skip>Skip the game</button>
@@ -40,6 +180,7 @@ import Section from './Section.astro';
 
 <script>
   import { mountLoginQueue } from '../scripts/login-queue';
+  import { mountCoinSlot } from '../scripts/coin-slot';
 
   const KEY = 'aq-bonus';
   const root = document.querySelector<HTMLElement>('[data-gate]');
@@ -75,6 +216,10 @@ import Section from './Section.astro';
       toGate();
     };
     const game = mountLoginQueue(root, unlock);
+    mountCoinSlot(root, () => {
+      game.start();
+      game.focus();
+    });
     root.querySelector('[data-skip]')?.addEventListener('click', unlock);
     bonus.querySelector('[data-replay]')?.addEventListener('click', lock);
 
@@ -105,19 +250,79 @@ import Section from './Section.astro';
       order: -1;
     }
   }
-  /* The page's one filled block. */
-  .gate__frame {
-    background: var(--accent-fill);
-    border: 1px solid var(--line);
-    border-radius: 2px;
-    padding: 0.75rem;
+  /* The arcade cabinet: pixel art as a full-size background, with the canvas and the buttons laid
+     over its screen and control panel in the same grid units, so the whole thing scales as one. */
+  .cab {
+    position: relative;
     max-width: 32rem;
+    aspect-ratio: 120 / 140;
+    container-type: inline-size;
+  }
+  .cab__art {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .cab__screen,
+  .cab__panel,
+  .cab__slot,
+  .cab__coin {
+    position: absolute;
+  }
+  /* The coin: dragged with a pointer (mouse or finger) into the slot; see coin-slot.ts. */
+  .cab__coin {
+    z-index: 2;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    transform: translate(var(--dx, 0px), var(--dy, 0px));
+    transition: transform 200ms ease;
+  }
+  .cab__coin svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .cab__coin.is-dragging {
+    cursor: grabbing;
+    transition: none;
+  }
+  .cab__coin.is-inserted {
+    transform: translate(var(--dx, 0px), var(--dy, 0px)) translateY(40%) scale(0.2);
+    opacity: 0;
+    transition: transform 250ms ease-in, opacity 250ms ease-in;
+  }
+  .cab__slot.is-over {
+    outline: 1px solid var(--accent);
+  }
+  [data-state='playing'] .cab__coin,
+  [data-state='playing'] .cab__hint {
+    display: none;
+  }
+  .cab__hint {
+    margin: 0;
+    font-family: var(--font-pixel);
+    font-size: clamp(0.5rem, 2.4cqw, 0.7rem);
+    color: var(--ink-2);
+    text-align: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cab__coin,
+    .cab__coin.is-inserted {
+      transition: none;
+    }
   }
   .gate__canvas {
     display: block;
     width: 100%;
-    height: auto;
-    aspect-ratio: 3 / 2;
+    height: 100%;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     cursor: pointer;
@@ -130,43 +335,32 @@ import Section from './Section.astro';
   .gate__controls {
     display: flex;
     justify-content: center;
-    margin-top: 0.75rem;
-  }
-  .gate__start {
-    min-width: 8rem;
+    align-items: center;
   }
   .gate__pad {
     display: none;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
+    gap: 2cqw;
     width: 100%;
-  }
-  [data-state='playing'] .gate__start {
-    display: none;
   }
   [data-state='playing'] .gate__pad {
     display: grid;
   }
   .gate__btn {
     font-family: var(--font-pixel);
-    font-size: 0.7rem;
+    font-size: clamp(0.5rem, 2.4cqw, 0.7rem);
     background: transparent;
     border: 1px solid var(--accent);
     color: var(--accent);
-    padding: 0.55rem 0.5rem;
+    padding: 0.7em 0.6em;
     border-radius: 0;
     cursor: pointer;
     touch-action: manipulation;
     user-select: none;
   }
-  .gate__btn:hover,
-  .gate__start {
+  .gate__btn:hover {
     background: var(--accent);
     color: var(--paper);
-  }
-  .gate__start:hover {
-    background: transparent;
-    color: var(--accent);
   }
   .gate__skip {
     margin: 0;

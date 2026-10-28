@@ -1,22 +1,49 @@
 ---
 import '../styles/global.css';
+import { Font } from 'astro:assets';
 import { site } from '../data/site';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 
 interface Props {
   title?: string;
+  /** Used for both the meta description and the social card text. Defaults differ: see below. */
   description?: string;
   /** Path for canonical URL, e.g. "/talks/foo/" */
   path?: string;
   type?: 'website' | 'article';
+  /** Path to the 1200×630 social card, e.g. "/og/talks/foo.png". See src/pages/og/. */
+  image?: string;
+  imageAlt?: string;
+  /** Emitted as article:published_time when type is "article". */
+  publishedTime?: Date;
+  /** Keep the page out of search indexes (the 404 page). No canonical is emitted. */
+  noindex?: boolean;
   /** Page contains the arcade gate: lock the bonus content before first paint unless already unlocked. */
   gate?: boolean;
 }
 
-const { title, description = site.description, path = '/', type = 'website', gate = false } = Astro.props;
-const pageTitle = title ? `${title} · ${site.shortName}` : `${site.name}`;
-const canonical = new URL(path, Astro.site ?? `https://${site.domain}`).href;
+const {
+  title,
+  description,
+  path = '/',
+  type = 'website',
+  image = '/og/home.png',
+  imageAlt = `${site.name}, ${site.jobTitle}`,
+  publishedTime,
+  noindex = false,
+  gate = false,
+} = Astro.props;
+
+const origin = Astro.site ?? new URL(`https://${site.domain}`);
+const pageTitle = title ? `${title} · ${site.shortName}` : `${site.name} · ${site.jobTitle}`;
+// og:site_name already carries the name, so the social title is the bare page title.
+const ogTitle = title ?? site.name;
+// Google truncates descriptions around 155 characters; social cards allow more.
+const metaDescription = description ?? site.metaDescription;
+const ogDescription = description ?? site.description;
+const canonical = new URL(path, origin).href;
+const imageUrl = new URL(image, origin).href;
 ---
 
 <!doctype html>
@@ -25,24 +52,39 @@ const canonical = new URL(path, Astro.site ?? `https://${site.domain}`).href;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
-    <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    <meta name="description" content={metaDescription} />
+    <meta name="author" content={site.name} />
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
+    <meta name="theme-color" content="#0e1020" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="sitemap" href="/sitemap-index.xml" />
     <meta name="generator" content={Astro.generator} />
+
     <meta property="og:type" content={type} />
     <meta property="og:site_name" content={site.name} />
-    <meta property="og:title" content={pageTitle} />
-    <meta property="og:description" content={description} />
+    <meta property="og:locale" content="en_IE" />
+    <meta property="og:title" content={ogTitle} />
+    <meta property="og:description" content={ogDescription} />
     <meta property="og:url" content={canonical} />
-    <meta name="twitter:card" content="summary" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,200..900;1,7..72,200..900&family=Silkscreen&display=swap"
-    />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={imageAlt} />
+    {type === 'article' && <meta property="article:author" content={site.name} />}
+    {type === 'article' && publishedTime && (
+      <meta property="article:published_time" content={publishedTime.toISOString()} />
+    )}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={ogTitle} />
+    <meta name="twitter:description" content={ogDescription} />
+    <meta name="twitter:image" content={imageUrl} />
+    <meta name="twitter:image:alt" content={imageAlt} />
+    <slot name="head" />
+
+    <Font cssVariable="--font-literata" preload={[{ style: 'normal', subset: 'latin' }]} />
+    <Font cssVariable="--font-silkscreen" />
     {gate && (
       <script is:inline>
         try {

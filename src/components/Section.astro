@@ -13,7 +13,7 @@ const { id, label, count, kicker } = Astro.props;
   <div class="wrap section__grid">
     <h2 class="section__label label">
       <span>{label}</span>
-      {count && <span class="section__count num">{count}</span>}
+      {count && <span class="section__count num" aria-hidden="true">{count}</span>}
     </h2>
     <div class="section__body">
       {kicker && <p class="section__kicker muted">{kicker}</p>}

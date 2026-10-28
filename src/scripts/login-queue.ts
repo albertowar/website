@@ -56,6 +56,8 @@ interface Colors {
 
 export interface LoginQueue {
   reset(): void;
+  /** Start a run. The cabinet calls this once a coin is inserted. */
+  start(): void;
   focus(): void;
 }
 
@@ -107,10 +109,16 @@ function readColors(el: HTMLElement): Colors {
   };
 }
 
+/** The pixel face. Read from the CSS token because the self-hosted family name is hashed at build time. */
+function readPixelFont(el: HTMLElement): string {
+  const family = getComputedStyle(el).getPropertyValue('--font-pixel').trim();
+  return `8px ${family || 'Silkscreen, monospace'}`;
+}
+
 export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueue {
   const canvas = root.querySelector('canvas');
   const ctx = canvas?.getContext('2d');
-  if (!canvas || !ctx) return { reset() {}, focus() {} };
+  if (!canvas || !ctx) return { reset() {}, focus() {}, start() {} };
   const c = ctx;
 
   canvas.width = W;
@@ -120,6 +128,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const speedK = reduced ? 0.6 : 1;
   let colors = readColors(root);
+  const pixelFont = readPixelFont(root);
 
   let state: State = 'title';
   let ents: Ent[] = [];
@@ -412,7 +421,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
       c.fillRect(W - 2, HUD_H, 2, H - HUD_H);
     }
 
-    c.font = '8px Silkscreen, monospace';
+    c.font = pixelFont;
     c.textBaseline = 'top';
 
     if (state === 'playing') {
@@ -445,7 +454,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
       center('BOTS HAVE FLOODED THE SITE', 62, colors.signal);
       center('FIRE CAPTCHAS AT BOTS', 74);
       center("DON'T HIT THE PLAYERS", 84);
-      center('PRESS START', 104, colors.accent);
+      center('INSERT COIN', 104, colors.accent);
     } else if (state === 'won') {
       center('ACCESS RESTORED', 50, colors.accent);
       center(`AUTH SUCCESS ${auth()}%`, 68);
@@ -461,11 +470,11 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
         center('THE BOTS GOT IN', 70);
       }
       center(`AUTH SUCCESS ${auth()}%`, 80, colors.ink2);
-      center('PRESS START TO RETRY', 100, colors.accent);
+      center('INSERT COIN TO RETRY', 100, colors.accent);
     }
   }
 
-  // Keyboard: move and fire only while playing and in view; Enter/Space on the canvas starts.
+  // Keyboard: move and fire only while playing and in view. Starting is the coin's job.
   window.addEventListener('keydown', (e) => {
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (state === 'playing') {
@@ -480,11 +489,6 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
         e.preventDefault();
         if (!e.repeat) fire();
       }
-      return;
-    }
-    if (document.activeElement === canvas && (e.code === 'Enter' || e.code === 'Space')) {
-      e.preventDefault();
-      start();
     }
   });
   window.addEventListener('keyup', (e) => {
@@ -494,12 +498,7 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
   window.addEventListener('blur', () => heldKeys.clear());
 
   canvas.addEventListener('pointerdown', () => {
-    if (state !== 'playing') {
-      canvas.focus();
-      start();
-      return;
-    }
-    fire();
+    if (state === 'playing') fire();
   });
 
   // Touch pad: hold to move, tap to fire.
@@ -519,11 +518,6 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
     e.preventDefault();
     fire();
   });
-  root.querySelector('[data-start]')?.addEventListener('click', () => {
-    canvas.focus();
-    start();
-  });
-
   document.addEventListener('visibilitychange', () => {
     heldKeys.clear();
     if (!document.hidden && state === 'playing') {
@@ -570,10 +564,11 @@ export function mountLoginQueue(root: HTMLElement, onWin: () => void): LoginQueu
 
   root.dataset.state = state;
   draw();
-  if (document.fonts?.load) document.fonts.load('8px Silkscreen').then(draw, draw);
+  if (document.fonts?.load) document.fonts.load(pixelFont).then(draw, draw);
 
   return {
     reset,
+    start,
     focus: () => canvas.focus(),
   };
 }

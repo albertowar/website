@@ -1,0 +1,11 @@
+---
+/** Emits a schema.org JSON-LD block. Use inside <Base>'s "head" slot. */
+interface Props {
+  data: Record<string, unknown>;
+}
+const { data } = Astro.props;
+// "<" is escaped so the JSON can never close the script element early.
+const json = JSON.stringify(data).replace(/</g, '\\u003c');
+---
+
+<script type="application/ld+json" is:inline set:html={json} />
