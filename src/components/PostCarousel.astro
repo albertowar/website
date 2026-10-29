@@ -14,7 +14,7 @@ const dateLabel = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', m
     {posts.map(({ data: { title, url, date, series, summary, cover } }) => (
       <li class="post">
         {cover ? (
-          <Image class="post__cover" src={cover} alt="" widths={[480, 800]} sizes="(min-width: 1024px) 360px, (min-width: 720px) 45vw, 85vw" />
+          <Image class="post__cover" src={cover} alt="" quality={60} widths={[320, 480, 800]} sizes="(min-width: 1024px) 240px, (min-width: 720px) 45vw, 80vw" />
         ) : (
           <div class="post__cover post__cover--blank" aria-hidden="true" />
         )}

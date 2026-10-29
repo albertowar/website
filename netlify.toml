@@ -1,3 +1,9 @@
 [build]
   command = "npm run build"
   publish = "dist"
+
+# Everything under /_astro/ has a content hash in its name, so it can be cached forever.
+[[headers]]
+  for = "/_astro/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

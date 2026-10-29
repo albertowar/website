@@ -31,6 +31,10 @@ const { id, label, icon, count, kicker } = Astro.props;
 <style>
   .section {
     padding: 4rem 0 2rem;
+    /* Skip layout and paint for sections far off screen. The browser remembers each section's
+       real height once it has rendered; 800px is only the first guess for the scrollbar. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 800px;
   }
   .section__grid {
     display: grid;
@@ -52,6 +56,11 @@ const { id, label, icon, count, kicker } = Astro.props;
   }
   .section__count {
     color: var(--ink-2);
+  }
+  /* Grid items default to min-width: auto, so a carousel's unwrapped track would stretch the
+     column past the screen and make the whole page scroll sideways on phones. */
+  .section__body {
+    min-width: 0;
   }
   .section__kicker {
     max-width: 52ch;

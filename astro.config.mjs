@@ -21,9 +21,11 @@ export default defineConfig({
       provider: fontProviders.google(),
       name: 'Literata',
       cssVariable: '--font-literata',
-      weights: ['200 900'],
+      // Only body (400) and headings/labels (500) are used; every character on the site is in
+      // the latin subset. Widening either means downloading more font.
+      weights: ['400 500'],
       styles: ['normal', 'italic'],
-      subsets: ['latin', 'latin-ext'],
+      subsets: ['latin'],
       fallbacks: ['Georgia', 'Times New Roman', 'serif'],
       // Keep the optical-size axis (7..72) that the Google Fonts stylesheet used to request.
       options: { experimental: { variableAxis: { opsz: [{ min: 7, max: 72 }] } } },

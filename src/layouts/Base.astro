@@ -88,9 +88,7 @@ const imageUrl = new URL(image, origin).href;
     {gate && (
       <script is:inline>
         try {
-          // Lighthouse (and PageSpeed Insights) audit the unlocked page.
-          if (!/Chrome-Lighthouse/.test(navigator.userAgent) && !localStorage.getItem('aq-bonus'))
-            document.documentElement.setAttribute('data-locked', '');
+          if (!localStorage.getItem('aq-bonus')) document.documentElement.setAttribute('data-locked', '');
         } catch (e) {
           document.documentElement.setAttribute('data-locked', '');
         }

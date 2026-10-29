@@ -10,10 +10,17 @@ const icons: Record<string, string> = {
   'Print store': '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="m3 17 5-5 4 4 3-3 6 6"/><circle cx="15.5" cy="8.5" r="1.5"/>',
 };
 const SHOWN = 7; // plus the closing page makes an even number of pages, so spreads come out full
-const img = (p: (typeof photos)[number]) =>
-  p.srcLarge
-    ? { src: p.src, srcset: `${p.srcLarge} 640w, ${p.src} 1024w`, sizes: '(min-width: 720px) 45vw, 85vw' }
-    : { src: p.src };
+// Pixieset serves every photo at fixed widths (-medium 360, -large 640, -xlarge 1024), whatever its
+// orientation, so the smaller sizes come straight from the -xlarge URL.
+const img = (p: (typeof photos)[number]) => {
+  if (!p.src.endsWith('-xlarge.jpg')) return { src: p.src };
+  const at = (size: string) => p.src.replace(/-xlarge\.jpg$/, `-${size}.jpg`);
+  return {
+    src: p.src,
+    srcset: `${at('medium')} 360w, ${at('large')} 640w, ${p.src} 1024w`,
+    sizes: '(min-width: 720px) 320px, calc(100vw - 112px)',
+  };
+};
 ---
 
 {photos.length > 0 && (
@@ -101,8 +108,21 @@ const img = (p: (typeof photos)[number]) =>
       prev.disabled = cur === 0;
       next.disabled = cur + per() >= pages.length;
       // Warm up the next spread so its photos are there when the page lands.
-      pages.slice(cur + per(), cur + per() * 2).forEach((p) => p.querySelector('img')?.setAttribute('loading', 'eager'));
+      if (near) pages.slice(cur + per(), cur + per() * 2).forEach((p) => p.querySelector('img')?.setAttribute('loading', 'eager'));
     };
+    // Only warm up once the album is close to the screen, so a page load never fetches
+    // off-screen photos (and a locked page fetches none at all).
+    let near = false;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        near = true;
+        io.disconnect();
+        render();
+      },
+      { rootMargin: '600px 0px' },
+    );
+    io.observe(root);
 
     // A page turn in hard steps: the leaf swings up to the spine, the spread changes, the new leaf
     // swings down from it. Forward turns hinge the outgoing right page on its left edge.

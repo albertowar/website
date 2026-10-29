@@ -26,6 +26,6 @@ export function initCarousel(root: HTMLElement) {
     }
   });
   track.addEventListener('scroll', sync, { passive: true });
-  window.addEventListener('resize', sync);
-  sync();
+  // Fires once after the first layout and on every resize, so the initial sync never forces a reflow.
+  new ResizeObserver(sync).observe(track);
 }
