@@ -29,7 +29,7 @@ export const site = {
   socials: [
     { label: 'LinkedIn', handle: 'in/albertowar', url: 'https://www.linkedin.com/in/albertowar/' },
     { label: 'GitHub', handle: 'albertowar', url: 'https://github.com/albertowar' },
-    { label: 'Email', handle: 'cv@anotherdevboy.com', url: 'mailto:cv@anotherdevboy.com' },
+    { label: 'Email', handle: 'contact@albertoguerra.com', url: 'mailto:contact@albertoguerra.com' },
   ],
   talksRepo: 'https://github.com/albertowar/talks',
   photographyBlurb: 'When I am not at a keyboard I am usually behind a wide-angle lens.',

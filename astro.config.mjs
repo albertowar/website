@@ -6,6 +6,8 @@ import sitemap from '@astrojs/sitemap';
 export default defineConfig({
   site: 'https://albertoguerra.com',
   output: 'static',
+  // The CSS is small enough (~8 KiB gzipped) that inlining it beats two render-blocking requests.
+  build: { inlineStylesheets: 'always' },
   integrations: [
     sitemap({
       // Every page is rebuilt on deploy, so the build time is an honest lastmod.
