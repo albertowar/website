@@ -8,6 +8,14 @@ export default defineConfig({
   output: 'static',
   // The CSS is small enough (~8 KiB gzipped) that inlining it beats two render-blocking requests.
   build: { inlineStylesheets: 'always' },
+  vite: {
+    build: {
+      // The arcade gate's script runs on every first visit, so ship it inside the HTML (~5 KiB
+      // compressed) rather than as a second request chained behind the document. Everything else
+      // keeps Vite's default 4 KiB inlining limit (returning undefined falls back to it).
+      assetsInlineLimit: (file) => (file.includes('ArcadeGate.astro') ? true : undefined),
+    },
+  },
   integrations: [
     sitemap({
       // Every page is rebuilt on deploy, so the build time is an honest lastmod.
